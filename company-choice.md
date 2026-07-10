@@ -40,3 +40,5 @@ La idea es crear un **asistente de IA interno para el equipo de tecnología**, u
 Para que funcione de verdad, este accedería a documentación de arquitectura, configuraciones, manuales, el histórico de incidencias, repositorios y registros de errores. 
 
 Con la información requerida podemos acelerar y desarrollar muchos procesos, desde detectar fallos, hasta proponer soluciones y lanzar alertas al ver algo grave.
+
+<!-- comentario de prueba de repositorio local -->
