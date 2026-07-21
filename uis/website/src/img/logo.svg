@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" width="220" height="56" role="img" aria-labelledby="nexova-logo-title nexova-logo-desc">
+  <title id="nexova-logo-title">Nexova</title>
+  <desc id="nexova-logo-desc">Logotipo de Nexova: dos triángulos enfrentados sobre fondo índigo junto al nombre de la empresa.</desc>
+  <rect x="0" y="4" width="48" height="48" rx="12" fill="#4338CA"/>
+  <polygon points="12,16 26,28 12,40" fill="#FFFFFF"/>
+  <polygon points="36,16 22,28 36,40" fill="#FFFFFF" opacity="0.85"/>
+  <circle cx="24" cy="28" r="3" fill="#C7D2FE"/>
+  <text x="62" y="38" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="-0.5" fill="#0F172A">Nexova</text>
+</svg>

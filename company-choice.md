@@ -41,4 +41,4 @@ Para que funcione de verdad, este accedería a documentación de arquitectura, c
 
 Con la información requerida podemos acelerar y desarrollar muchos procesos, desde detectar fallos, hasta proponer soluciones y lanzar alertas al ver algo grave.
 
-<!-- comentario de prueba de repositorio local -->
+<!-- comentario de prueba de repositorio local -->  
