@@ -1,0 +1,25 @@
+{
+  "name": "nexova-domain-models",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nexova — utilidades TypeScript para el motor de scoring de candidatos y matching de vacantes (Hito 2)",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test --test-reporter=spec src/tests/*.test.ts",
+    "check": "npm run typecheck && npm test",
+    "build": "tsc"
+  },
+  "keywords": [
+    "nexova",
+    "typescript",
+    "recruiting"
+  ],
+  "author": "Diego Reynoso",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
