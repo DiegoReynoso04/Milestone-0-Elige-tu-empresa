@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Talent Pipeline Tracker
 
-## Getting Started
+Panel interno de gestión de candidaturas para **Nexova Solutions** (Operaciones de Selección). Permite visualizar, filtrar, registrar y hacer seguimiento del flujo de selección de candidatos consumiendo directamente la API REST pública `/tracker/api/v1`.
 
-First, run the development server:
+> Proyecto académico (milestone de 4Geeks Academy — AI Engineering). La empresa "Nexova Solutions" es ficticia; la API consumida es real y compartida entre distintos alumnos.
+
+## Qué hace la aplicación
+
+- **Listado de candidaturas** (`/`): tabla/tarjetas responsive con nombre, puesto, estado y etapa de cada candidato. Incluye filtro por estado, filtro por etapa, búsqueda por nombre o email (con debounce) y paginación. Distingue claramente "sin resultados" de "error al cargar", y descarta respuestas de búsquedas obsoletas si llegan fuera de orden.
+- **Detalle de candidatura** (`/candidates/[id]`): muestra todos los datos del candidato (contacto, puesto, experiencia, LinkedIn/CV, fechas). Los enlaces a LinkedIn/CV solo se renderizan como link si son URLs http(s) válidas; si no, se muestra el texto plano. Un `id` inexistente cae en una página `not-found` dedicada.
+- **Cambio rápido de estado y etapa**: dos selectores en el detalle que actualizan `status`/`stage` mediante `PATCH`, con actualización optimista (`useOptimistic`) y reversión visible si la petición falla.
+- **Alta y edición de candidaturas**: un único formulario, en un modal (`<dialog>` nativo), reutilizado para crear (`POST`) y editar (`PUT`). Valida en cliente antes de enviar y mapea los errores `422` de la API al campo correspondiente.
+- **Notas por candidato**: listar, añadir y eliminar notas de texto libre asociadas a una candidatura, con confirmación antes de borrar.
+- **Notificaciones**: cada alta, edición, cambio de estado/etapa o nota (crear/borrar) muestra un toast de éxito o error, accesible mediante regiones `aria-live`.
+- **Manejo de errores robusto**: errores de validación (422), recurso no encontrado (404), otros errores HTTP, errores de red y timeouts (20 s) se distinguen entre sí y siempre producen un mensaje legible — nunca un fallo silencioso ni un spinner infinito.
+
+Lo que la aplicación **no** hace, a propósito: no permite eliminar candidaturas (el endpoint existe en la API pero queda fuera de alcance de esta versión) y no incluye autenticación (la API no la requiere).
+
+## Stack técnico
+
+- [Next.js 16](https://nextjs.org) (App Router), Client Components únicamente — no hay Server Actions ni Route Handlers: la aplicación consume la API directamente desde el navegador (CORS lo permite).
+- [React 19](https://react.dev) con hooks nativos (`useState`, `useReducer`, `useContext`, `useOptimistic`) — sin librerías externas de gestión de estado.
+- TypeScript en modo estricto, sin `any`.
+- Tailwind CSS v4 (configuración vía `@import "tailwindcss"` en `app/globals.css`, sin `tailwind.config.ts`).
+
+## Puesta en marcha
+
+Requisitos: Node.js 20 o superior.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Crea un archivo `.env.local` en la raíz del proyecto con la URL base de la API:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+NEXT_PUBLIC_API_URL=https://playground.4geeks.com/tracker/api/v1
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+La aplicación falla al arrancar con un error explícito si esta variable no está definida.
 
-## Learn More
+```bash
+npm run dev      # servidor de desarrollo en http://localhost:3000
+npm run build    # build de producción
+npm run start    # sirve el build de producción
+npm run lint     # ESLint
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Estructura del proyecto
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text
+app/
+├── page.tsx                     # listado de candidaturas
+├── layout.tsx                   # layout raíz, monta ToastProvider
+└── candidates/[id]/
+    ├── page.tsx                 # detalle de candidatura
+    └── not-found.tsx            # id inexistente (404)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+components/
+├── candidates/                  # listado, tabla/tarjetas, filtros, paginación,
+│                                 # detalle, formulario de alta/edición, controles de estado
+├── notes/                       # listado, alta y borrado de notas
+└── ui/                          # botón, input, select, badge, spinner, modal, toasts
 
-## Deploy on Vercel
+hooks/
+├── use-records.ts               # listado: fetch, filtros, paginación, control de carrera
+├── use-record-detail.ts         # detalle: fetch por id
+├── use-notes.ts                 # notas: fetch, alta, borrado
+└── use-debounce.ts              # debounce del campo de búsqueda
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+services/
+├── records.service.ts           # llamadas a /records
+├── notes.service.ts             # llamadas a /records/{id}/notes
+└── normalizers.ts                # única frontera donde se maneja `unknown` de red
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+lib/
+├── api-client.ts                # fetch genérico: timeout, errores tipados, parseo de 204/422
+└── format.ts                    # formateo defensivo de fechas y valores
+
+types/
+├── record.ts                    # RecordOut, RecordCreate, RecordPatch, Note, etc.
+├── known-values.ts              # KnownStatus / KnownStage
+└── api.ts                       # ValidationError, HTTPValidationError
+```
+
+## Decisiones de arquitectura relevantes
+
+- **Frontera de confianza**: todo lo que llega de la red como `unknown` se valida y se convierte a tipos firmes exclusivamente en `services/normalizers.ts`. El resto de la aplicación nunca ve `unknown` ni hace `as` sobre una respuesta de red. Cada endpoint tiene su propio normalizador porque la API usa tres formatos de envoltorio distintos (`GET /records` envuelve en `{ data, total, page, limit }`, `GET /records/{id}/notes` en `{ data, meta: { total } }`, y `POST /records/{id}/notes` devuelve la nota desnuda).
+- **Cliente HTTP centralizado** (`lib/api-client.ts`): distingue explícitamente `ValidationApiError` (422, con `detail[]` mapeable a campos), `NotFoundError` (404), `ApiError` genérico (otros códigos), `NetworkError` (fetch rechazado) y `TimeoutError` (sin respuesta en 20 s — el backend corre en un dyno de Heroku que puede tardar en despertar). Un cuerpo `204` nunca se pasa a `.json()`; un cuerpo ilegible (JSON corrupto) se convierte en un error explícito en vez de propagar un `SyntaxError` sin capturar.
+- **`<dialog>` nativo para modales**: tanto el formulario de alta/edición como la confirmación de borrado de una nota usan el elemento `<dialog>` con `showModal()`. El navegador gestiona el atrapado de foco y el cierre con `Escape` de forma nativa, sin JavaScript adicional.
+- **Reconciliación de `notes_count`**: tras crear o borrar una nota, el contador que se muestra sale de `meta.total` (o de la longitud de la lista en memoria), nunca del `notes_count` de `RecordOut`, que queda obsoleto en cuanto cambia el número de notas.
+- **`status`/`stage` como `string`, no `enum`**: el contrato OpenAPI los declara como `string`; `KnownStatus`/`KnownStage` documentan los valores conocidos para los selectores sin dejar de aceptar cualquier valor que la API devuelva.
+
+## Documentación del proyecto
+
+Este README describe el funcionamiento general. Las reglas de negocio, el contrato de la API y las restricciones técnicas obligatorias están documentadas con más detalle en:
+
+- [`SPECS.md`](./SPECS.md) — especificación técnica completa: modelos, endpoints, contratos observados de la API y requisitos funcionales (REQ-1 a REQ-6).
+- [`CLAUDE.md`](./CLAUDE.md) — restricciones permanentes de stack, tipado y arquitectura para cualquier cambio futuro.
+
+Ante cualquier duda sobre el comportamiento esperado de la aplicación, `SPECS.md` es la fuente de verdad.
