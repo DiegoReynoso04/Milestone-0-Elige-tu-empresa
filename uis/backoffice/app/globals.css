@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  /* Superficie y texto — mismos tokens que uis/talent-pipeline-tracker,
+     para mantener una sola paleta interna en las apps de Nexova. */
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
+  --color-ink: #0f172a;
+  --color-ink-muted: #475569;
+
+  --color-brand: #1d4ed8;
+  --color-brand-strong: #1e3a8a;
+  --color-brand-contrast: #ffffff;
+}
