@@ -45,6 +45,8 @@ Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `p
 
 **Regla derivada:** `/services` se crea únicamente cuando un hito futuro defina un backend propio con contrato explícito — nunca por anticipación ni porque la plantilla lo mencione.
 
+**Nota (2026-09-20):** existe una propuesta de arquitectura para ese backend en `docs/ARCHITECTURE_PROPOSAL.md` (un servicio FastAPI en `services/api/`, monolito modular por dominios). Es una **propuesta pendiente de aprobación del CTO**, no una decisión registrada: esta sección se actualizará con las decisiones concretas solo cuando se aprueben y se cree el servicio. Hasta entonces, la decisión anterior se mantiene tal cual. Ver `progress.md`, entrada 2026-09-20.
+
 ## Skills y agentes en este repo
 
 - `skills/data-analysis/` — limpieza pandas + referencia de métricas (ya existente, sin cambios).
