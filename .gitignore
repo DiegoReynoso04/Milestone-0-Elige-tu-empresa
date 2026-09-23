@@ -10,6 +10,8 @@ contexts/
 # Python
 __pycache__/
 *.py[cod]
+.venv/
+*.egg-info/
 
 # Datos reales de incidentes (contienen emails de clientes) y su exportación
 data/raw/incidents/

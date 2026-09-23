@@ -38,6 +38,7 @@ Ningún agente commitea código sin completar estos cinco pasos, en orden:
    | `uis/backoffice/` | `npx tsc --noEmit` + `npm run lint` + `npm run build` |
    | `uis/website/` | sin build step — verificación manual/visual |
    | `packages/incident-analyzer/` + `scripts/analyze.py` | `python -m unittest discover -s packages/incident-analyzer/tests -t packages/incident-analyzer` (desde la raíz) |
+   | `services/api/` | **Requiere el venv del servicio** (con el Python global falla al importar `fastapi`). Desde la raíz, sin activar nada: `services\api\.venv\Scripts\python -m unittest discover -s services/api/tests -t services/api` (Windows) o `services/api/.venv/bin/python -m unittest discover -s services/api/tests -t services/api` (Linux/macOS). Crear/instalar el venv: ver `services/api/README.md` |
 
    Si el cambio afecta a más de un subproyecto, ejecutar todos los comandos que correspondan.
 

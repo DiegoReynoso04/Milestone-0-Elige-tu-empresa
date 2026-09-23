@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nexova-incident-api"
+version = "0.1.0"
+description = "Nexova — API HTTP (FastAPI) sobre el núcleo de análisis de incidentes de soporte"
+readme = "README.md"
+requires-python = ">=3.11"
+# Rangos acotados a las versiones probadas (sin lockfile).
+#
+# El núcleo `incident_analyzer` (packages/incident-analyzer) NO se declara
+# aquí a propósito: no está publicado y ese nombre está libre en PyPI, así que
+# declararlo haría que pip lo buscase allí (dependency confusion). Se instala
+# siempre desde el monorepo en la misma orden que este servicio:
+#   pip install -e packages/incident-analyzer -e "services/api[dev]"
+dependencies = [
+    "fastapi>=0.141,<0.142",
+    "python-multipart>=0.0.32,<0.1",
+    "uvicorn>=0.53,<0.54",
+]
+
+[project.optional-dependencies]
+# httpx lo necesita fastapi.testclient.TestClient. Tests con unittest (sin pytest).
+dev = ["httpx>=0.28,<0.29"]
+
+[tool.setuptools]
+packages = ["app", "app.core", "app.modules", "app.modules.incidents"]

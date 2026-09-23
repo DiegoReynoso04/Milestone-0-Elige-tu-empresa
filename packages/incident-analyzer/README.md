@@ -4,7 +4,7 @@ Núcleo de análisis del CSV de incidentes de soporte de **Nexova** (servicio de
 
 Fuente de verdad funcional: [`docs/COMPANY_INCIDENT_FILE_ANALIZER_PROJECT.md`](../../docs/COMPANY_INCIDENT_FILE_ANALIZER_PROJECT.md).
 
-Es el **único** lugar con lógica de análisis: la CLI [`scripts/analyze.py`](../../scripts/analyze.py) es una capa fina encima, y cualquier otro consumidor futuro debe importar este paquete en vez de reimplementar reglas o métricas.
+Es el **único** lugar con lógica de análisis. Sus consumidores son capas finas encima: la CLI [`scripts/analyze.py`](../../scripts/analyze.py) y la API HTTP [`services/api`](../../services/api/README.md). Cualquier otro consumidor debe importar este paquete en vez de reimplementar reglas o métricas. El paquete no depende de ningún framework web.
 
 ## Requisitos
 
@@ -27,9 +27,11 @@ Si la consola no puede codificar los caracteres de caja (`cp1252` en Windows al 
 ## API pública
 
 ```python
-from incident_analyzer import analyze_file, analyze_stream, render_report, render_results_csv, write_results_csv
+from incident_analyzer import analyze_file, render_report, render_results_csv, write_results_csv
 
-result = analyze_file("incidents-nexova.csv")   # o analyze_stream(lineas_de_texto)
+result = analyze_file("incidents-nexova.csv")
+# o analyze_binary_stream(stream_binario)  — p. ej. UploadFile.file en la API
+# o analyze_stream(lineas_de_texto_ya_decodificadas)
 print(render_report(result, "incidents-nexova.csv"))
 write_results_csv(result, "results.csv")
 ```
@@ -40,7 +42,7 @@ write_results_csv(result, "results.csv")
 | `reader.py` | CSV → `IncidentRow` (valores con `strip()`); `IncidentFileError` con mensajes sin contenido |
 | `validation.py` | `validate_row` → `ValidationResult` (número de fila + reglas); `parse_score` |
 | `metrics.py` | `MetricsAccumulator` → `AnalysisResult` (solo conteos, `Decimal` + ROUND_HALF_UP) |
-| `analyze.py` | Orquestación: leer → validar → agregar |
+| `analyze.py` | Orquestación: leer → validar → agregar. `analyze_binary_stream` decodifica bytes (UTF-8 con BOM opcional, sin cerrar el stream) y `analyze_file` la reutiliza |
 | `report.py` | Texto del reporte de consola |
 | `export.py` | Métricas exportables y CSV `metric,value` con protección contra formula injection |
 

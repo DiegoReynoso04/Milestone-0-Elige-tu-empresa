@@ -5,7 +5,7 @@ Solo librería estándar. Ningún módulo imprime ni registra: el reporte y la
 exportación se devuelven como texto o se escriben donde indique quien llama.
 """
 
-from .analyze import analyze_file, analyze_stream
+from .analyze import analyze_binary_stream, analyze_file, analyze_stream
 from .export import ExportMetric, build_export_metrics, render_results_csv, write_results_csv
 from .metrics import (
     AnalysisResult,
@@ -34,6 +34,7 @@ __all__ = [
     "Status",
     "StatusCount",
     "ValidationResult",
+    "analyze_binary_stream",
     "analyze_file",
     "analyze_stream",
     "build_export_metrics",
