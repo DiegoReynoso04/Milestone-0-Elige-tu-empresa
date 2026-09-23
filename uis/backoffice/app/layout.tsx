@@ -1,4 +1,7 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+
+import { NavLink } from '@/components/ui/nav-link';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -11,10 +14,16 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     <html lang="es" className="h-full">
       <body className="flex min-h-full flex-col bg-canvas font-sans text-ink antialiased">
         <header className="border-b border-border bg-surface">
-          <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-            <span className="text-sm font-semibold tracking-tight text-ink">
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4">
+            <Link
+              href="/"
+              className="rounded-control text-sm font-semibold tracking-tight text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
               Nexova <span className="text-ink-muted">· Backoffice</span>
-            </span>
+            </Link>
+            <nav aria-label="Principal">
+              <NavLink href="/incidents">Análisis de incidentes</NavLink>
+            </nav>
           </div>
         </header>
         <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-8">

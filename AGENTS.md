@@ -35,10 +35,14 @@ Ningún agente commitea código sin completar estos cinco pasos, en orden:
    |---|---|
    | `src/` (Hito 2 — domain models) | `npm run check` (typecheck + tests) |
    | `uis/talent-pipeline-tracker/` | `npx tsc --noEmit` + `npm run lint` |
-   | `uis/backoffice/` | `npx tsc --noEmit` + `npm run lint` + `npm run build` |
+   | `uis/backoffice/` | Desde `uis/backoffice`: `npx tsc --noEmit` + `npm run lint` + `npm run build` + tests con Node 24: `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/support/resolve-alias.mjs --test --test-timeout=10000 "tests/*.test.mjs"` |
    | `uis/website/` | sin build step — verificación manual/visual |
+   | `packages/incident-analyzer/` + `scripts/analyze.py` | `python -m unittest discover -s packages/incident-analyzer/tests -t packages/incident-analyzer` (desde la raíz) |
+   | `services/api/` | **Requiere el venv del servicio** (con el Python global falla al importar `fastapi`). Desde la raíz, sin activar nada: `services\api\.venv\Scripts\python -m unittest discover -s services/api/tests -t services/api` (Windows) o `services/api/.venv/bin/python -m unittest discover -s services/api/tests -t services/api` (Linux/macOS). Crear/instalar el venv: ver `services/api/README.md` |
 
    Si el cambio afecta a más de un subproyecto, ejecutar todos los comandos que correspondan.
+
+   **Procesador de incidentes de Nexova — Fase 3 (`uis/backoffice`, ruta `/incidents`, implementada):** Server Component que renderiza una vista cliente; la vista solo interactúa mediante el hook `hooks/use-incident-analysis.ts` (frontera de interacción) → `services/incidents.service.ts` → `lib/api-client.ts` (único `fetch`) → `services/api`. `unknown` de red solo en `services/normalizers.ts`. Privacidad: el frontend no lee el contenido del CSV ni muestra `customer_email` o datos de filas. Además de la validación de la tabla, un cambio en `/incidents` se verifica manualmente en el navegador (descarga, exportación obsoleta, cancelación al salir). Reglas completas en `uis/backoffice/CLAUDE.md`; no se duplican aquí.
 
 2. **Revisar el diff real antes de comitear:** `git status --short` y `git diff --stat`. Confirmar que no se incluyen archivos generados (`node_modules/`, `.next/`, `*.log`, `*.tsbuildinfo`) ni dependencias no autorizadas en ningún `package.json` tocado.
 
