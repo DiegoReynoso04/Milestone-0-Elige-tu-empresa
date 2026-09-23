@@ -37,6 +37,7 @@ Ningún agente commitea código sin completar estos cinco pasos, en orden:
    | `uis/talent-pipeline-tracker/` | `npx tsc --noEmit` + `npm run lint` |
    | `uis/backoffice/` | `npx tsc --noEmit` + `npm run lint` + `npm run build` |
    | `uis/website/` | sin build step — verificación manual/visual |
+   | `packages/incident-analyzer/` + `scripts/analyze.py` | `python -m unittest discover -s packages/incident-analyzer/tests -t packages/incident-analyzer` (desde la raíz) |
 
    Si el cambio afecta a más de un subproyecto, ejecutar todos los comandos que correspondan.
 

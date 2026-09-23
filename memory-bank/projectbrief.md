@@ -25,14 +25,14 @@ Nexova tiene reputación y red de contactos, pero **no tiene infraestructura par
 | Marketing y Comunicación | Carmen Ruiz | Sitio web corporativo (landing + formulario de registro de talento) — Hito 1 | `uis/website/` |
 | Operaciones de Selección | Javier Almeida | Lógica de dominio: scoring y matching de candidatos — Hito 2 | `src/` (raíz) |
 | Formación Corporativa (L&D) + Tecnología e Infraestructura | Elena Vargas (solicitante) / Sergio Molina (CTO) | Talent Pipeline Tracker — panel interno de gestión de candidaturas — Hito 3 | `uis/talent-pipeline-tracker/` |
+| Atención al Cliente (outsourcing de soporte) | Roberto Díaz (Customer Support Lead) / Sergio Molina (CTO) | Procesador de reportes de incidentes: análisis del CSV exportado del helpdesk legado (validación, métricas por categoría/estado, índice de satisfacción, exportación) sin enviar datos a herramientas de IA externas — Fase 1 (núcleo + CLI) | `packages/incident-analyzer/` + `scripts/analyze.py` |
 
-Ver `contexts/hito1/CONTEXT-WEB-NEXOVA.md`, `contexts/hito2/CONTEXT-HITO2.md` y `contexts/hito3/CONTEXT-HITO3.md` para el briefing completo de cada encargo.
+Ver `contexts/hito1/CONTEXT-WEB-NEXOVA.md`, `contexts/hito2/CONTEXT-HITO2.md` y `contexts/hito3/CONTEXT-HITO3.md` para el briefing completo de cada encargo. El del procesador de incidentes es [`docs/COMPANY_INCIDENT_FILE_ANALIZER_PROJECT.md`](../docs/COMPANY_INCIDENT_FILE_ANALIZER_PROJECT.md) — a diferencia de los anteriores, vive en `docs/`, no en `contexts/`.
 
 ## Departamentos descritos en `contexts/CONTEXT.md` sin herramienta propia todavía
 
 - **Ventas y Desarrollo de Negocio** — Marcos Ibáñez / Megan Clarke.
 - **Recursos Humanos (interno)** — Patricia Solís.
-- **Atención al Cliente (outsourcing)** — Roberto Díaz.
 - **Dirección Ejecutiva** — Laura Mendoza (informe semanal manual).
 
 Cualquier funcionalidad nueva para estas áreas debe partir de un contexto de hito real (igual que Hitos 1–3), nunca de una suposición.

@@ -1,0 +1,14 @@
+ticket_id,date,client_company,category,description,agent_id,status,customer_email,satisfaction_score
+NXV-000001,2026-08-01,Acme Retail,TECHNICAL,Printer not responding,AGT-01,CLOSED,user01@example.invalid,5
+NXV-000002,2026-08-01,Beta Finance,BILLING,"Double charge, invoice 2208",AGT-02,OPEN,user02@example.invalid,
+NXV-000003,2026-08-02,Gamma Tech,ACCESS,Cannot log into portal,AGT-03,CLOSED,user03@example.invalid,4
+NXV-000004,2026-08-02,Delta Retail,HR_QUERY,Vacation policy question,AGT-04,DISCARDED,user04@example.invalid,
+NXV-000005,2026-08-03,Epsilon Bank,COMPLAINT,Agent ended the chat abruptly,AGT-05,CLOSED,user05@example.invalid,2
+NXV-000006,2026-08-03,Acme Retail,TECHNICAL,Laptop battery drains fast,AGT-06,OPEN,user06@example.invalid,3
+NXV-000007,2026-08-04,,BILLING,Refund not received,AGT-07,OPEN,user07@example.invalid,
+NXV-000008,2026-08-04,Beta Finance,SHIPPING,Package lost in transit,AGT-08,OPEN,user08@example.invalid,
+NXV-000009,2026-08-05,Gamma Tech,ACCESS,Password reset loop,AGT-09,OPEN,user09.example.invalid,
+NXV-000010,2026-08-05,Delta Retail,TECHNICAL,Screen keeps flickering,AGT-10,CLOSED,user10@example.invalid,
+NXV-000011,2026-08-06,,HR_QUERY,Hi,AGT-1,CLOSED,,9
+NXV-000012,2026-08-06,Epsilon Bank,BILLING,Invoice address is wrong,AGT-12,CLOSED,user12@example.invalid,4
+BAD-13,13/08/2026,Zeta Retail,COMPLAINT,Long wait time on chat,AGT-13,PENDING,user13@example.invalid,

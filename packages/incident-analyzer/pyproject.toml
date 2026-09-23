@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nexova-incident-analyzer"
+version = "0.1.0"
+description = "Nexova — análisis del CSV de incidentes de soporte (validación, métricas, reporte y exportación)"
+readme = "README.md"
+requires-python = ">=3.11"
+# Solo librería estándar: sin dependencias de ejecución.
+dependencies = []
+
+[tool.setuptools]
+packages = ["incident_analyzer"]
