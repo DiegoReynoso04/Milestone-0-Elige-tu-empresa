@@ -18,6 +18,6 @@ Organize `uis/` by **different concerns** — each subfolder covers a distinct a
 |---|---|---|---|---|
 | Website | [`website/`](./website/) | Public landing + talent registration form (Marketing, Carmen Ruiz) | Static HTML + Tailwind CSS v4 (Play CDN), no build step | Live (Milestone 1, deployed on Netlify) |
 | Talent Pipeline Tracker | [`talent-pipeline-tracker/`](./talent-pipeline-tracker/README.md) | Internal candidate-selection panel (Selection Operations, Javier Almeida) | Next.js 16 (App Router) + React 19 + strict TypeScript + Tailwind v4 | Done (Milestone 3) |
-| Backoffice | [`backoffice/`](./backoffice/README.md) | Internal admin entry point for Nexova's operations — see its README for scope | Next.js 16 + React 19 + strict TypeScript + Tailwind v4 (same stack as `talent-pipeline-tracker`, see [`memory-bank/techContext.md`](../memory-bank/techContext.md)) | Scaffold — entry view with real company data, no business logic yet |
+| Backoffice | [`backoffice/`](./backoffice/README.md) | Internal admin entry point for Nexova's operations — see its README for scope | Next.js 16 + React 19 + strict TypeScript + Tailwind v4 (same stack as `talent-pipeline-tracker`, see [`memory-bank/techContext.md`](../memory-bank/techContext.md)) | Entry view with real company data + `/incidents` support-ticket CSV analysis (incident analyzer Phase 3, consumes `services/api`) |
 
 > _Estas instrucciones también están disponibles en [español](./README.es.md)._

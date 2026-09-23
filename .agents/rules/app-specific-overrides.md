@@ -24,7 +24,7 @@ Cada app puede tener restricciones más estrictas o específicas que no aplican 
 | App | Dónde están sus reglas |
 |---|---|
 | `uis/talent-pipeline-tracker/` | `CLAUDE.md` (restricciones permanentes) + `SPECS.md` (contrato de API, requisitos funcionales) — ambos versionados |
-| `uis/backoffice/` | `CLAUDE.md` (alcance actual: solo punto de entrada, dato de empresa verificado) — versionado |
+| `uis/backoffice/` | `CLAUDE.md` (alcance: portada con dato de empresa verificado + `/incidents`, análisis de incidentes; reglas de arquitectura, privacidad y tests) + `README.md` (configuración y validación) — ambos versionados |
 | `services/api/` (procesador de incidentes, Fase 2) | `SPECS.md` (contrato HTTP; separa requisitos del contexto de Nexova de las decisiones D-API) + `README.md` (instalación, venv, validación) — ambos versionados |
 | `packages/incident-analyzer/` (procesador de incidentes, Fase 1) | `README.md` (API pública, reglas D1–D9, privacidad) — versionado |
 | `src/` (Hito 2) | Sin `CLAUDE.md`/`AGENTS.md` propio versionado. `contexts/hito2/HITO2.md` documenta decisiones de diseño y convenciones de test, pero esa carpeta es local y no viaja con el repositorio (ver `nexova-context.md`) — el resumen versionado equivalente está en `memory-bank/techContext.md` |
