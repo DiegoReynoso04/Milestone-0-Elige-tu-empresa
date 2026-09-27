@@ -2,15 +2,15 @@
 
 Contexto **técnico**: convenciones de carpetas, stacks reales por app y decisiones de arquitectura vigentes. No repite contexto de negocio — ver `projectbrief.md` para eso.
 
-## Convención de carpetas (definida en `README.md` raíz)
+## Convención de carpetas (heredada de la plantilla de 4Geeks)
 
-Una responsabilidad por carpeta de primer nivel: `uis/` (frontends), `services/` (backends/APIs), `data/` (raw/pipelines/process/eval), `agents/` (agentes de IA), `skills/` (capacidades reutilizables para agentes), `mcps/` (servidores MCP), `workflows/` (n8n/automatización), `packages/` (librerías compartidas), `shared/` (esquemas/plantillas sueltas), `docs/`, `infra/`, `scripts/`, `internal/`. Antes de crear una carpeta nueva de cualquier tipo, releer la tabla "¿Dónde pongo esto?" del `README.md` raíz y el `README.md` de la carpeta destino.
+Una responsabilidad por carpeta de primer nivel: `uis/` (frontends), `services/` (backends/APIs), `data/` (raw/pipelines/process/eval), `agents/` (agentes de IA), `skills/` (capacidades reutilizables para agentes), `mcps/` (servidores MCP), `workflows/` (n8n/automatización), `packages/` (librerías compartidas), `shared/` (esquemas/plantillas sueltas), `docs/`, `infra/`, `scripts/`, `internal/`. Antes de crear una carpeta nueva de cualquier tipo, releer `.agents/rules/monorepo-structure.md` y el `README.md` de la carpeta destino. *(Desde 2026-09-27 el `README.md` raíz ya no contiene la guía de carpetas de la plantilla — ver nota de abajo; la versión anterior sigue en el historial de git, p. ej. `git show fda5125:README.es.md`.)*
 
-**Nota de ruta:** el `README.md` raíz describe un `CONTEXT.md` en la raíz del repo. Ese archivo **no existe** — se movió a `contexts/CONTEXT.md` (commit `9877ff6`, "mover notas de contexto a carpeta local `contexts/`"). El README raíz no se ha actualizado para reflejarlo.
+**Nota de ruta (actualizada 2026-09-27):** el `README.md` raíz ya **no** es la guía de la plantilla: ahora contiene el briefing de empresa de Nexova, idéntico a `contexts/CONTEXT.md`, y `README.es.md` se eliminó. Por tanto el briefing completo **sí está versionado** (en `README.md`), aunque `contexts/` siga ignorado. No existe ningún `CONTEXT.md` en la raíz (se movió a `contexts/` en el commit `9877ff6`).
 
 **Importante — `contexts/` no está en git.** El `.gitignore` raíz (línea 8) ignora toda la carpeta `contexts/`: `git ls-files contexts/` no devuelve nada, y `git check-ignore -v contexts/CONTEXT.md` lo confirma. Es decir, `contexts/CONTEXT.md` y los `contexts/hitoN/*.md` **existen solo en checkouts locales que ya los tenían** (probablemente deliberado: el propio `CONTEXT.md` se marca como "Documento interno... uso exclusivo para la generación de proyectos del programa"). Alguien que clone este repositorio desde GitHub **no** obtiene esa carpeta.
 
-**Consecuencia práctica:** `memory-bank/projectbrief.md` no es solo un resumen de comodidad — es el **único registro de contexto de negocio versionado y compartido** vía git. Cualquier instrucción que diga "leer `contexts/CONTEXT.md`" solo aplica si esa carpeta existe en el checkout local; si no existe, `memory-bank/projectbrief.md` es la referencia disponible y debe bastar por sí sola.
+**Consecuencia práctica:** quien clone el repo tiene el briefing general en `README.md` raíz y el resumen de lo construido en `memory-bank/projectbrief.md`; los briefings por hito (`contexts/hitoN/*.md`) siguen siendo solo locales. Cualquier instrucción que diga "leer `contexts/CONTEXT.md`" solo aplica si esa carpeta existe en el checkout local; si no existe, `memory-bank/projectbrief.md` es la referencia disponible y debe bastar por sí sola.
 
 ## Inventario de apps existentes
 
@@ -25,7 +25,7 @@ Una responsabilidad por carpeta de primer nivel: `uis/` (frontends), `services/`
 | Incident analyzer (CLI) | `scripts/analyze.py` | Capa fina sobre el núcleo (argparse, `input()`, códigos de salida). Sin lógica de negocio. Se ejecuta sin instalar el paquete (añade `packages/incident-analyzer` a `sys.path` si no está instalado) | Procesador de incidentes, Fase 1 |
 | Incident analyzer (API) | `services/api/` | **FastAPI 0.141.1 + Starlette 1.7.0 + pydantic 2.13.5 + python-multipart 0.0.32 + uvicorn 0.53.0**; tests con `unittest` + `TestClient` (httpx 0.28.1), sin pytest. Versiones instaladas el 2026-09-23 en `services/api/.venv` con Python 3.14.6; `pyproject.toml` las acota con rangos (ver decisión abajo), sin lockfile. Contrato en su `SPECS.md` — no duplicado aquí | Procesador de incidentes, Fase 2 (2026-09-23) |
 
-Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `package.json`/`node_modules` — no hay workspaces de monorepo configurados en la raíz (el `README.md` raíz lo confirma: existe metadata de `packages/shared/package.json` pero "aún no hay runner de workspace en raíz").
+Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `package.json`/`node_modules` — no hay workspaces de monorepo configurados en la raíz (existe metadata en `packages/shared/package.json`, pero no hay runner de workspace en raíz).
 
 ## Estado real en `main` (verificado, no asumido)
 

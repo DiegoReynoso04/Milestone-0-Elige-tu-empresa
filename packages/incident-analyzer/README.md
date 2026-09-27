@@ -68,4 +68,5 @@ python -m unittest discover -s packages/incident-analyzer/tests -t packages/inci
 ```
 
 - `tests/fixtures/incidents-synthetic.csv` — fixture sintético de 13 filas con emails ficticios `example.invalid`.
+- `tests/fixtures/incidents-acceptance-synthetic.csv` + `tests/test_acceptance_synthetic.py` — **fixture sintético de aceptación** (100 filas, no son datos de Nexova) que reproduce exactamente las cifras del contexto; se ejecuta siempre. Detalle en `tests/fixtures/README.md`.
 - `tests/test_acceptance.py` — comprueba las cifras exactas del contexto (100 / 96 / 4, etc.) contra el dataset real. Aparece como **skipped (PENDING)** mientras `data/raw/incidents/incidents-nexova.csv` no exista; otra ruta se puede indicar con `NEXOVA_INCIDENTS_CSV`.
