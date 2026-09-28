@@ -26,13 +26,14 @@ Nexova tiene reputación y red de contactos, pero **no tiene infraestructura par
 | Operaciones de Selección | Javier Almeida | Lógica de dominio: scoring y matching de candidatos — Hito 2 | `src/` (raíz) |
 | Formación Corporativa (L&D) + Tecnología e Infraestructura | Elena Vargas (solicitante) / Sergio Molina (CTO) | Talent Pipeline Tracker — panel interno de gestión de candidaturas — Hito 3 | `uis/talent-pipeline-tracker/` |
 | Atención al Cliente (outsourcing de soporte) | Roberto Díaz (Customer Support Lead) / Sergio Molina (CTO) | Procesador de reportes de incidentes: análisis del CSV exportado del helpdesk legado (validación, métricas por categoría/estado, índice de satisfacción, exportación) sin enviar datos a herramientas de IA externas — Fase 1 (núcleo + CLI), Fase 2 (API HTTP local, sin autenticación) y Fase 3 (vista web `/incidents` en el backoffice) | `packages/incident-analyzer/` + `scripts/analyze.py` + `services/api/` + `uis/backoffice/` (`/incidents`) |
+| Recursos Humanos (interno), en coordinación con operaciones | Patricia Solís (HR Manager) / Sergio Molina (CTO, tech lead) | Directorio de proveedores: registro oficial y único de los servicios externos que contrata Nexova (sustituye la hoja de cálculo compartida por email). 15 proveedores iniciales, países Spain/USA, 9 categorías, estados `active`/`suspended`, trazabilidad de tarifas y renovaciones en 60 días. API FastAPI + TinyDB + Pydantic con seeder (`uv run seed`) y vista web `/suppliers` en el backoffice | `services/api/` (`/suppliers`) + `uis/backoffice/` (`/suppliers`) |
 
-Ver `contexts/hito1/CONTEXT-WEB-NEXOVA.md`, `contexts/hito2/CONTEXT-HITO2.md` y `contexts/hito3/CONTEXT-HITO3.md` para el briefing completo de cada encargo. El del procesador de incidentes es [`docs/COMPANY_INCIDENT_FILE_ANALIZER_PROJECT.md`](../docs/COMPANY_INCIDENT_FILE_ANALIZER_PROJECT.md) — a diferencia de los anteriores, vive en `docs/`, no en `contexts/`.
+Ver `contexts/hito1/CONTEXT-WEB-NEXOVA.md`, `contexts/hito2/CONTEXT-HITO2.md` y `contexts/hito3/CONTEXT-HITO3.md` para el briefing completo de cada encargo. El del procesador de incidentes es [`docs/COMPANY_INCIDENT_FILE_ANALIZER_PROJECT.md`](../docs/COMPANY_INCIDENT_FILE_ANALIZER_PROJECT.md) y el del directorio de proveedores es [`docs/ligthweight-storage-api.md`](../docs/ligthweight-storage-api.md) — a diferencia de los anteriores, viven en `docs/`, no en `contexts/`.
 
 ## Departamentos descritos en `contexts/CONTEXT.md` sin herramienta propia todavía
 
 - **Ventas y Desarrollo de Negocio** — Marcos Ibáñez / Megan Clarke.
-- **Recursos Humanos (interno)** — Patricia Solís.
+- **Recursos Humanos (interno)** — Patricia Solís. Solo tiene el directorio de proveedores (tabla de arriba); el resto de sus necesidades (portal interno, onboarding, KPIs de RRHH) sigue sin herramienta.
 - **Dirección Ejecutiva** — Laura Mendoza (informe semanal manual).
 
 Cualquier funcionalidad nueva para estas áreas debe partir de un contexto de hito real (igual que Hitos 1–3), nunca de una suposición.

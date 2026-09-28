@@ -47,6 +47,11 @@ class NoAnalysisError(ApiError):
         super().__init__(404, "no_analysis", "no analysis available yet")
 
 
+class SupplierNotFoundError(ApiError):
+    def __init__(self) -> None:
+        super().__init__(404, "supplier_not_found", "supplier not found")
+
+
 class FileTooLargeError(ApiError):
     def __init__(self, max_bytes: int) -> None:
         super().__init__(413, "file_too_large", f"request body exceeds the {max_bytes} bytes limit")

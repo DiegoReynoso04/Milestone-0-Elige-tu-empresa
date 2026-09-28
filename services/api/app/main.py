@@ -1,4 +1,6 @@
-"""Aplicación FastAPI. Arranque: `uvicorn app.main:create_app --factory` (ver README).
+"""Aplicación FastAPI única del servicio: incidentes y directorio de proveedores.
+
+Arranque: `uvicorn app.main:create_app --factory` (ver README).
 
 Solo ensambla: configuración, middlewares, handlers de error y routers.
 """
@@ -9,20 +11,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import Settings
 from app.core.errors import InternalErrorMiddleware, install_error_handlers
 from app.core.limits import BodySizeLimitMiddleware
+from app.database import SupplierRepository
 from app.modules.incidents.router import router as incidents_router
 from app.modules.incidents.store import LastResultStore
+from app.routes.suppliers import router as suppliers_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings if settings is not None else Settings.from_env()
 
-    app = FastAPI(title="Nexova Incident Analyzer API", version="0.1.0")
+    app = FastAPI(title="Nexova API", version="0.1.0")
     app.state.settings = settings
     # Un store por app: cada create_app() (y cada test) empieza sin análisis.
     app.state.result_store = LastResultStore()
+    # TinyDB en disco: los proveedores persisten entre reinicios.
+    app.state.supplier_repository = SupplierRepository(settings.suppliers_db_path)
 
     install_error_handlers(app)
     app.include_router(incidents_router, prefix="/api/incidents")
+    app.include_router(suppliers_router, prefix="/suppliers")
 
     @app.get("/health", tags=["health"])
     def health() -> dict[str, str]:
@@ -35,7 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_allowed_origins),
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_credentials=False,
         expose_headers=["Content-Disposition", "X-Analysis-Id"],
     )

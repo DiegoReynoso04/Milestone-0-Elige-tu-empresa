@@ -1,6 +1,11 @@
-# SPECS — API del analizador de incidentes (Nexova)
+# SPECS — API de Nexova (`services/api`)
 
 Contrato HTTP de `services/api`. Si el código y este documento discrepan, el documento se actualiza en el mismo cambio que el código.
+
+Una sola aplicación FastAPI (`app/main.py`) con dos dominios:
+
+- **Parte A (§1–§7): analizador de incidentes** — `/api/incidents/*`.
+- **Parte B (§8–§14): directorio de proveedores** — `/suppliers*`, persistido en TinyDB.
 
 Este documento distingue **dos orígenes** de requisitos. Mezclarlos sería atribuir al cliente decisiones que no tomó.
 
@@ -35,7 +40,7 @@ El documento de contexto de Nexova **no define ninguna API HTTP**: describe un s
 | D-API-5 | El último resultado es **el último análisis que termina correctamente**; un POST fallido no lo modifica |
 | D-API-11 | `Cache-Control: no-store` en las respuestas 200 de `POST /api/incidents/analyze` y `GET /api/incidents/results/export` |
 | D-API-6 | `analysis_id` y `analyzed_at` en la respuesta del POST; `X-Analysis-Id` en el GET de exportación. Son metadatos de la API: no forman parte de `AnalysisResult` |
-| D-API-7 | CORS con orígenes explícitos (`CORS_ALLOWED_ORIGINS`, por defecto `http://localhost:3000`), solo `GET`/`POST`, sin credenciales, nunca `*` |
+| D-API-7 | CORS con orígenes explícitos (`CORS_ALLOWED_ORIGINS`, por defecto `http://localhost:3000`), sin credenciales, nunca `*`. Métodos: `GET`/`POST` (y, desde el directorio de proveedores, `PATCH`/`DELETE`: ver §13) |
 | D-API-8 | `GET /health` fuera de `/api` |
 | D-API-9 | El núcleo expone `analyze_binary_stream(stream)`; la API le pasa `UploadFile.file` |
 | D-API-10 | **Sin autenticación.** Servicio de uso **local**; no apto para exponerse públicamente con datos reales |
@@ -147,6 +152,7 @@ Formato único: `{"detail": ..., "code": "..."}`.
 |---|---|---|---|
 | 400 | `invalid_csv` | archivo vacío, sin cabecera, faltan columnas, no es UTF-8, CSV ilegible | mensaje del núcleo (solo nombres de columna o números de fila) |
 | 404 | `no_analysis` | export sin análisis previo | `no analysis available yet` |
+| 404 | `supplier_not_found` | `/suppliers/{id}` con un id que no existe (Parte B) | `supplier not found` |
 | 404 | `not_found` | ruta inexistente | `Not Found` |
 | 405 | `method_not_allowed` | método no soportado; incluye la cabecera `Allow` con los métodos permitidos | `Method Not Allowed` |
 | 413 | `file_too_large` | **body HTTP** mayor que `MAX_UPLOAD_BYTES` (por `Content-Length` o contando bytes en streaming si no hay `Content-Length`) | `request body exceeds the <N> bytes limit` |
@@ -188,3 +194,87 @@ Variables de entorno del proceso (la API no carga archivos `.env`; ver `.env.exa
 |---|---|---|
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | lista separada por comas; `*` se rechaza al arrancar |
 | `MAX_UPLOAD_BYTES` | `1048576` | entero > 0; se valida al arrancar. Límite del **body HTTP completo**, no del CSV (§3.1) |
+| `SUPPLIERS_DB_PATH` | `services/api/data/suppliers.json` | ruta del archivo TinyDB del directorio de proveedores (Parte B). La usan la API y el seeder |
+
+---
+
+# Parte B — Directorio de proveedores
+
+## 8. Requisitos heredados (contexto de Nexova)
+
+Fuente: [`docs/ligthweight-storage-api.md`](../../docs/ligthweight-storage-api.md) (solicitado por Patricia Solís, HR Manager; tech lead Sergio Molina). Los nombres de campos, categorías y estados son **exactamente** los del documento.
+
+| Requisito | Dónde se cumple |
+|---|---|
+| Modelo de proveedor (10 campos) | `app/models.py` (`SupplierCreate`, `Supplier`) |
+| 9 categorías válidas (`VALID_CATEGORIES`) y 2 estados (`VALID_STATUSES`) | `app/models.py` (`SupplierCategory`, `SupplierStatus`) |
+| Moneda por país: Spain → EUR, USA → USD; la API rechaza combinaciones inconsistentes | validador de modelo de `SupplierCreate` → 422 |
+| Trazabilidad de tarifas: cada cambio de `monthly_rate` registra `updated_at` | `app/database.py` (`update_rate`) |
+| Seeder con los 15 proveedores de `SUPPLIERS_SEED` | `app/seed.py` (`uv run seed`) |
+| Renovaciones en los próximos 60 días destacadas | frontend (`uis/backoffice`), no la API |
+| Suspensión controlada: los suspendidos no se eliminan | `PATCH /suppliers/{id}/status`; ver la tensión con `DELETE` en §10 |
+
+## 9. Decisiones de implementación (tech lead, 2026-09-29; no vienen del contexto)
+
+| ID | Decisión |
+|---|---|
+| D-SUP-1 | **FastAPI + TinyDB + Pydantic** (decisión del tech lead; se migrará a Postgres cuando exista el ORM). Dependencia nueva autorizada: `tinydb>=4.9,<4.10` |
+| D-SUP-2 | Rutas `/suppliers…` **sin** prefijo `/api`, tal como las define el brief del proyecto. Conviven con `/api/incidents/*` en la misma app |
+| D-SUP-3 | Archivos con los nombres del brief dentro del paquete existente `app/` (no se duplica la aplicación): `app/main.py`, `app/models.py`, `app/database.py`, `app/routes/suppliers.py`, `app/seed.py` |
+| D-SUP-4 | `id` = `doc_id` de TinyDB (entero) |
+| D-SUP-5 | `updated_at` lo genera el sistema en **UTC** al crear y en cada `PATCH …/rate`. Cambiar el estado **no** lo modifica. El cliente no puede enviarlo (422) |
+| D-SUP-6 | Entrada estricta: campos desconocidos, `id` o `updated_at` en el body → 422. `monthly_rate` debe ser un número JSON (`"100"` → 422), finito y > 0 |
+| D-SUP-7 | Campos obligatorios de texto (`name`): se recortan espacios y no pueden quedar vacíos |
+| D-SUP-8 | Filtros `country` y `category` combinables (AND); `category` coincide si está entre las `categories` del proveedor. Un valor fuera de la lista → 422 |
+| D-SUP-9 | Seeder **explícito** (`uv run seed`), nunca automático al arrancar la API. Idempotente por `name`: solo inserta los que no existen y no modifica los existentes |
+| D-SUP-10 | TinyDB se abre y cierra en cada operación bajo un `threading.Lock`: cada escritura queda en disco y la API se ejecuta con **un único worker**. No ejecutar el seeder mientras la API escribe |
+| D-SUP-11 | Sin validación de formato de `contact_email` ni de `notes`: el contexto solo los define como string opcional |
+| D-SUP-12 | `uv.lock` versionado (preferencia del tech lead, 2026-09-29): versiones exactas reproducibles para `uv run`. Los rangos de `pyproject.toml` se mantienen para el flujo con pip |
+
+## 10. Tensión `DELETE` ↔ "suspensión controlada"
+
+El contexto de Nexova dice que **los proveedores suspendidos no se eliminan** (se conservan para mantener el historial). El brief del proyecto **exige** `DELETE /suppliers/{id}` y lo evalúa.
+
+Decisión del tech lead: el endpoint existe y funciona (204 / 404), pero **el frontend no lo expone**: Patricia solo puede activar o suspender. Así el historial se conserva en el uso normal y el requisito del brief se cumple. Cualquier uso de `DELETE` es una acción técnica fuera de la UI.
+
+## 11. Modelo
+
+| Campo | Tipo | Entrada (`POST`) | Validación |
+|---|---|---|---|
+| `id` | int | no se envía (422) | lo asigna TinyDB |
+| `name` | string | obligatorio | no vacío tras recortar espacios |
+| `country` | string | obligatorio | `"Spain"` o `"USA"` (exacto) |
+| `categories` | lista de strings | obligatorio | mínimo 1; cada una de `VALID_CATEGORIES` |
+| `monthly_rate` | number | obligatorio | > 0, finito, número JSON |
+| `currency` | string | obligatorio | `"EUR"` o `"USD"`, coherente con `country` |
+| `updated_at` | datetime ISO 8601 UTC | no se envía (422) | lo genera el sistema |
+| `status` | string | obligatorio | `"active"` o `"suspended"` |
+| `contract_renewal_date` | string o null | opcional | fecha real en formato `YYYY-MM-DD` |
+| `contact_email` | string o null | opcional | — |
+| `notes` | string o null | opcional | — |
+
+Las respuestas incluyen siempre los 11 campos; los opcionales ausentes van como `null`.
+
+## 12. Endpoints
+
+| Método y ruta | Body | Éxito | Errores |
+|---|---|---|---|
+| `POST /suppliers` | `SupplierCreate` | **201** + proveedor completo con `id` | 422 |
+| `GET /suppliers?country=&category=` | — | **200** + lista (todos si no hay filtros) | 422 (valor de filtro inválido) |
+| `GET /suppliers/{id}` | — | **200** + proveedor | 404 `supplier_not_found`, 422 (id no numérico) |
+| `PATCH /suppliers/{id}/rate` | `{"monthly_rate": number}` | **200** + proveedor con `updated_at` nuevo | 404, 422 (≤ 0, no numérico, campos extra) |
+| `PATCH /suppliers/{id}/status` | `{"status": "active"}` o `{"status": "suspended"}` | **200** + proveedor (`updated_at` sin cambios) | 404, 422 |
+| `DELETE /suppliers/{id}` | — | **204** sin cuerpo | 404 |
+
+Errores con el formato común `{detail, code}` (§4); el 422 devuelve la lista `{loc, msg, type}` sin `input`.
+
+## 13. Persistencia y CORS
+
+- Archivo TinyDB `SUPPLIERS_DB_PATH` (por defecto `services/api/data/suppliers.json`, **ignorado por git**), tabla `suppliers`. Los datos sobreviven a reinicios de la API.
+- CORS añade `PATCH` y `DELETE` a los métodos permitidos (el backoffice cambia tarifa y estado desde el navegador). Mismos orígenes explícitos que la Parte A.
+
+## 14. Seeder
+
+`cd services/api && uv run seed` (entry point `seed = "app.seed:main"` en `[project.scripts]`). Sin uv, con el venv del servicio: `python -m app.seed` o el ejecutable `seed` del venv.
+
+Salida en consola: ruta de la base, **proveedores insertados**, ya existentes (omitidos) y total. Una segunda ejecución inserta 0.

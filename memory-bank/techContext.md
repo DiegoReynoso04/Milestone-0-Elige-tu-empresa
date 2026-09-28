@@ -23,7 +23,9 @@ Una responsabilidad por carpeta de primer nivel: `uis/` (frontends), `services/`
 | Incident analyzer (UI) | `uis/backoffice/` → ruta `/incidents` | Mismo stack del backoffice, **sin dependencias nuevas**. Tests con el runner nativo de **Node 24** (`node --test` sobre `.mjs` que importan los `.ts`, TypeScript por borrado de tipos). Reglas en `uis/backoffice/CLAUDE.md` — no duplicadas aquí | Procesador de incidentes, Fase 3 (2026-09-23) |
 | Incident analyzer (núcleo) | `packages/incident-analyzer/` | **Python ≥ 3.11, solo librería estándar** (`csv`, `re`, `dataclasses`, `decimal`, `enum`). Tests con `unittest` (sin pytest). `pyproject.toml` con `dependencies = []` (build backend setuptools, solo si alguien lo instala). Detalle de módulos y reglas en su `README.md` — no duplicado aquí | Procesador de incidentes, Fase 1 (2026-09-22) |
 | Incident analyzer (CLI) | `scripts/analyze.py` | Capa fina sobre el núcleo (argparse, `input()`, códigos de salida). Sin lógica de negocio. Se ejecuta sin instalar el paquete (añade `packages/incident-analyzer` a `sys.path` si no está instalado) | Procesador de incidentes, Fase 1 |
-| Incident analyzer (API) | `services/api/` | **FastAPI 0.141.1 + Starlette 1.7.0 + pydantic 2.13.5 + python-multipart 0.0.32 + uvicorn 0.53.0**; tests con `unittest` + `TestClient` (httpx 0.28.1), sin pytest. Versiones instaladas el 2026-09-23 en `services/api/.venv` con Python 3.14.6; `pyproject.toml` las acota con rangos (ver decisión abajo), sin lockfile. Contrato en su `SPECS.md` — no duplicado aquí | Procesador de incidentes, Fase 2 (2026-09-23) |
+| Incident analyzer (API) | `services/api/` | **FastAPI 0.141.1 + Starlette 1.7.0 + pydantic 2.13.5 + python-multipart 0.0.32 + uvicorn 0.53.0**; tests con `unittest` + `TestClient` (httpx 0.28.1), sin pytest. Versiones instaladas el 2026-09-23 en `services/api/.venv` con Python 3.14.6; `pyproject.toml` las acota con rangos (ver decisión abajo). Desde el 2026-09-29 hay `uv.lock` versionado (ver decisión del directorio de proveedores). Contrato en su `SPECS.md` (Parte A) — no duplicado aquí | Procesador de incidentes, Fase 2 (2026-09-23) |
+| Directorio de proveedores (API) | `services/api/` → `/suppliers` | Misma app FastAPI + **TinyDB 4.9.0** (`tinydb>=4.9,<4.10`, autorizada) + Pydantic. Archivos con los nombres del brief dentro de `app/`: `models.py`, `database.py`, `routes/suppliers.py`, `seed.py` (`uv run seed`, entry point `[project.scripts]`). Contrato en `SPECS.md` Parte B — no duplicado aquí | Directorio de proveedores (2026-09-29) |
+| Directorio de proveedores (UI) | `uis/backoffice/` → ruta `/suppliers` | Mismo stack y capas que `/incidents`, **sin dependencias nuevas**. Reglas en `uis/backoffice/CLAUDE.md` — no duplicadas aquí | Directorio de proveedores (2026-09-29) |
 
 Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `package.json`/`node_modules` — no hay workspaces de monorepo configurados en la raíz (existe metadata en `packages/shared/package.json`, pero no hay runner de workspace en raíz).
 
@@ -97,6 +99,19 @@ Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `p
 - **Privacidad:** el contenido del CSV nunca se lee en JavaScript (el `File` va directo a `FormData`); en estado solo hay la referencia al `File`, el `AnalysisResult` y `UiError`; mensajes de error fijos por `code` (solo `invalid_csv.detail` se muestra); sin `console.*`, sin persistencia en el navegador, sin `JSON.stringify` de datos.
 - **Tests sin dependencias:** runner nativo de **Node 24** (`node --test`) sobre archivos `.mjs` que importan los `.ts` (borrado de tipos nativo). `tests/support/resolve-alias.mjs` resuelve el alias `@/` con `module.registerHooks`, sin tocar `tsconfig.json`. `production-source.test.mjs` revisa estáticamente todo el código de producción. No hay renderizador de React ni DOM en los tests: la unión con React y la descarga real se validan manualmente en el navegador.
 - **Validación**: `npx tsc --noEmit` + `npm run lint` + `npm run build` + el comando de tests, registrado en `AGENTS.md` §4.
+
+### Directorio de proveedores: TinyDB en `services/api/` y vista `/suppliers`
+
+**Decisión (2026-09-29, tech lead, D-SUP-1…12 en `services/api/SPECS.md` Parte B):** el directorio de proveedores de Nexova (contexto: `docs/ligthweight-storage-api.md`) se añade a la **misma** app FastAPI de `services/api` (no se crea una segunda app), persistido en TinyDB hasta que exista el ORM para migrar a Postgres.
+
+**Puntos técnicos a recordar:**
+- **Rutas** `/suppliers…` **sin** prefijo `/api` (las define el brief); conviven con `/api/incidents/*`.
+- **TinyDB** en `SUPPLIERS_DB_PATH` (por defecto `services/api/data/suppliers.json`, ignorado por git). Se abre y cierra en cada operación bajo un `threading.Lock`; exige un único worker. No hay auto-seed al arrancar: el seeder es explícito (`uv run seed`) e idempotente por `name`.
+- **`updated_at`** lo genera el sistema (UTC) al crear y en cada cambio de tarifa; el cambio de estado no lo toca.
+- **`DELETE /suppliers/{id}`** existe (lo exige el brief), pero la UI no lo expone: el contexto pide "suspensión controlada" (SPECS §10).
+- **uv:** `uv run seed` usa el `.venv` de `services/api` (sincronización no exacta: conserva el núcleo `incident-analyzer` instalado con pip). **`uv.lock` versionado** por preferencia del tech lead (no había prohibición; antes el lockfile estaba "fuera de alcance").
+- **Tests ajustados de la Parte A:** `test_architecture.py` permite `print` solo en `app/seed.py`; el test de CORS ahora exige `GET/POST/PATCH/DELETE` y rechaza `PUT`.
+- **UI:** el vocabulario (países, monedas, categorías, estados) vive en `uis/backoffice/types/suppliers.ts` (excepción documentada en su `CLAUDE.md`), verificado contra el contexto por test. `JSON.stringify` solo en `lib/api-client.ts` (`postJson`/`patchJson`).
 
 ## Skills y agentes en este repo
 

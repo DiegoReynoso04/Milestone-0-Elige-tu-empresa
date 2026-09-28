@@ -11,6 +11,6 @@ Each subfolder inside `services/` must correspond to **one specific service** (f
 
 | Service | Path | Objective | Stack | Status |
 |---|---|---|---|---|
-| Incident analyzer API | [`api/`](./api/README.md) | HTTP layer over `packages/incident-analyzer` for Nexova's support-ticket CSV analysis (Customer Support, Roberto Díaz). Local use only, no authentication | Python 3.11+, FastAPI, uvicorn | Phase 2 of the incident analyzer |
+| Nexova API | [`api/`](./api/README.md) | Single FastAPI app: (1) HTTP layer over `packages/incident-analyzer` for Nexova's support-ticket CSV analysis (Customer Support, Roberto Díaz); (2) supplier directory `/suppliers` persisted in TinyDB, with `uv run seed` (Patricia Solís, HR). Local use only, no authentication | Python 3.11+, FastAPI, Pydantic, TinyDB, uvicorn | Phase 2 of the incident analyzer; lightweight storage API (`docs/ligthweight-storage-api.md`) |
 
 > _Spanish version: [README.es.md](./README.es.md)._

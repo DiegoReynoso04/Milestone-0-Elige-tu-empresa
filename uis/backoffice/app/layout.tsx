@@ -21,8 +21,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
             >
               Nexova <span className="text-ink-muted">· Backoffice</span>
             </Link>
-            <nav aria-label="Principal">
+            <nav aria-label="Principal" className="flex flex-wrap items-center gap-4">
               <NavLink href="/incidents">Análisis de incidentes</NavLink>
+              <NavLink href="/suppliers">Proveedores</NavLink>
             </nav>
           </div>
         </header>

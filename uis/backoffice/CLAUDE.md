@@ -4,10 +4,11 @@ Fuente de verdad de negocio: `contexts/CONTEXT.md` si existe en tu checkout (car
 
 ## Alcance actual
 
-El backoffice tiene dos piezas, y **solo estas dos**:
+El backoffice tiene tres piezas, y **solo estas tres**:
 
 1. **Vista de entrada (`/`)** — ficha de empresa y roadmap. Se mantiene tal cual.
 2. **Análisis de incidentes de soporte (`/incidents`)** — capacidad de negocio **autorizada** por el tech lead como Fase 3 del procesador de incidentes de Nexova (rama `feature/incident-analyzer`). Ver sección propia abajo.
+3. **Directorio de proveedores (`/suppliers`)** — autorizado por el tech lead (Sergio Molina) para el encargo de Patricia Solís (rama `api-con-almacenamiento-ligero`). Ver sección propia abajo.
 
 Cualquier otra capacidad de negocio (autenticación, gestión de personas, operaciones, comunicación interna…) sigue **prohibida** sin un contexto de hito propio que la respalde — mismo criterio que `uis/talent-pipeline-tracker` (que tiene su `SPECS.md`).
 
@@ -37,6 +38,23 @@ Reglas específicas:
 - **Tests:** módulos puros (normalizadores, cliente, servicio, estado/sesión del hook) y revisión estática del código de producción con el runner nativo de Node 24, **sin añadir dependencias**. Comando exacto en el `README.md` (sección Validación). Los componentes se validan con `tsc` + `lint` + `build` y verificación manual en el navegador.
 - **Primitivas de UI** (botón, spinner, alerta): se reescriben localmente siguiendo el patrón de `uis/talent-pipeline-tracker/components/ui/`; no hay paquete compartido.
 
+## Directorio de proveedores (`/suppliers`)
+
+Fuentes de verdad, por orden:
+
+- Requisitos funcionales y vocabulario: [`docs/ligthweight-storage-api.md`](../../docs/ligthweight-storage-api.md) ("Lo que verá Patricia en el frontend").
+- Contrato HTTP: [`services/api/SPECS.md`](../../services/api/SPECS.md) Parte B (`GET/POST /suppliers`, `PATCH /suppliers/{id}/rate`, `PATCH /suppliers/{id}/status`). Mismas reglas que `/incidents` para no inventar campos ni endpoints.
+
+Reglas específicas (lo no citado aquí sigue las reglas de `/incidents`: URL de la API, frontera de confianza, capas, tests, sin `console.*` ni persistencia en el navegador):
+
+- **Sin botón ni llamada de borrado.** `DELETE /suppliers/{id}` existe en la API, pero la UI solo activa o suspende ("suspensión controlada"; SPECS §10). `tests/production-source.test.mjs` lo comprueba.
+- **Vocabulario en el frontend (excepción a la regla de `/incidents`):** `types/suppliers.ts` define países, monedas, las 9 categorías y los 2 estados, porque los filtros y el formulario deben ofrecerlos y la API no los publica. Se muestran tal cual (en inglés) y `tests/suppliers-contract.test.mjs` exige que coincidan con el CONTEXT. No se traducen ni se amplían.
+- **Validación en cliente:** solo campos requeridos y tarifa > 0 (`validateSupplierForm`, `parseRate`). La coherencia país/moneda, la fecha y el resto las valida la API; sus **422 se muestran por campo** con el `msg` de la API (no contiene datos personales: son reglas del modelo).
+- **Renovaciones:** `lib/supplier-renewal.ts` destaca las fechas dentro de los próximos 60 días según la fecha local del navegador. Es presentación, no una regla de la API.
+- **JSON de salida:** el único `JSON.stringify` permitido es el de `lib/api-client.ts` (`postJson`/`patchJson`), sobre bodies que el servicio construye campo a campo.
+- **Arquitectura:** `app/suppliers/page.tsx` (Server Component, metadata) → `components/suppliers/supplier-directory-view.tsx` (`'use client'`) → `hooks/use-supplier-directory.ts` (única frontera de interacción: carreras, cancelación, recarga tras cambios) → `services/suppliers.service.ts` → `lib/api-client.ts`. `unknown` solo en `services/normalizers.ts`.
+- **Navegación:** enlace "Proveedores" en la cabecera del layout.
+
 ## Stack
 
 - Next.js (App Router), TypeScript estricto, Tailwind CSS v4 (config vía CSS, sin `tailwind.config.ts`) — mismo stack que `uis/talent-pipeline-tracker`, decisión registrada en `memory-bank/techContext.md`.
@@ -46,7 +64,7 @@ Reglas específicas:
 
 ## Arquitectura
 
-- Al consumir una API propia (hoy: la de análisis de incidentes), seguir el mismo patrón de frontera de confianza que `uis/talent-pipeline-tracker`: `services/normalizers.ts` como único lugar con `unknown` de red, errores tipados en `lib/api-client.ts`, y componentes sin HTTP directo.
+- Al consumir una API propia (hoy: análisis de incidentes y directorio de proveedores), seguir el mismo patrón de frontera de confianza que `uis/talent-pipeline-tracker`: `services/normalizers.ts` como único lugar con `unknown` de red, errores tipados en `lib/api-client.ts`, y componentes sin HTTP directo.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

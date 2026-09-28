@@ -3,14 +3,17 @@
 //
 // - Validan la FORMA del contrato de services/api/SPECS.md (tipos y número
 //   de entradas), no las reglas de negocio del CSV: eso es del backend.
+//   Para proveedores (SPECS Parte B) además comprueban que país, moneda,
+//   categorías y estado sean valores del vocabulario conocido: la UI los usa
+//   para badges y filtros, y un valor desconocido indicaría un contrato roto.
 // - Construyen objetos nuevos campo a campo (whitelist). Nunca se hace spread
 //   del objeto recibido, así que ninguna propiedad desconocida (p. ej. un
 //   `customer_email` que la API enviase por error) llega al estado de la UI.
 // - Los errores solo citan la ruta del campo y el tipo esperado/recibido,
 //   nunca valores recibidos: no pueden contener PII.
 //
-// Este módulo no tiene imports en tiempo de ejecución (solo `import type`,
-// que se borra al ejecutar), para poder probarlo con `node --test`.
+// Los tests lo cargan con `node --test` (el alias `@/` lo resuelve
+// tests/support/resolve-alias.mjs).
 
 import type {
   AnalysisResult,
@@ -22,6 +25,16 @@ import type {
   SatisfactionResult,
   Totals,
 } from '@/types/incidents';
+import {
+  SUPPLIER_CATEGORIES,
+  SUPPLIER_COUNTRIES,
+  SUPPLIER_CURRENCIES,
+  SUPPLIER_STATUSES,
+  type FieldError,
+  type Supplier,
+  type SupplierCategory,
+  type SupplierField,
+} from '@/types/suppliers';
 
 // Estructura fija del contrato (SPECS.md §3.1): siempre las 7 reglas, las 5
 // categorías, los 3 estados y las puntuaciones 1–5, aunque valgan 0.
@@ -203,4 +216,100 @@ export function normalizeApiErrorBody(input: unknown): ApiErrorBody {
     code: typeof code === 'string' ? code : null,
     detail: typeof detail === 'string' ? detail : null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Directorio de proveedores (services/api/SPECS.md Parte B)
+// ---------------------------------------------------------------------------
+
+function isOneOf<T extends string>(values: readonly T[], value: unknown): value is T {
+  return values.some((candidate) => candidate === value);
+}
+
+function readOneOf<T extends string>(source: JsonObject, key: string, path: string, values: readonly T[]): T {
+  const value = source[key];
+  if (!isOneOf(values, value)) throw new UnexpectedResponseError(`${path}.${key}`, values.join(' | '), describeType(value));
+  return value;
+}
+
+function readFiniteNumber(source: JsonObject, key: string, path: string): number {
+  const value = source[key];
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new UnexpectedResponseError(`${path}.${key}`, 'number', describeType(value));
+  }
+  return value;
+}
+
+function readCategories(source: JsonObject, path: string): SupplierCategory[] {
+  const value = source.categories;
+  const arrayPath = `${path}.categories`;
+  if (!Array.isArray(value)) throw new UnexpectedResponseError(arrayPath, 'array', describeType(value));
+  return value.map((item, index) => {
+    if (!isOneOf(SUPPLIER_CATEGORIES, item)) {
+      throw new UnexpectedResponseError(`${arrayPath}[${index}]`, 'supplier category', describeType(item));
+    }
+    return item;
+  });
+}
+
+function parseSupplier(input: unknown, path: string): Supplier {
+  const value = expectObject(input, path);
+  return {
+    id: readInteger(value, 'id', path),
+    name: readString(value, 'name', path),
+    country: readOneOf(value, 'country', path, SUPPLIER_COUNTRIES),
+    categories: readCategories(value, path),
+    monthly_rate: readFiniteNumber(value, 'monthly_rate', path),
+    currency: readOneOf(value, 'currency', path, SUPPLIER_CURRENCIES),
+    updated_at: readString(value, 'updated_at', path),
+    status: readOneOf(value, 'status', path, SUPPLIER_STATUSES),
+    contract_renewal_date: readNullableString(value, 'contract_renewal_date', path),
+    contact_email: readNullableString(value, 'contact_email', path),
+    notes: readNullableString(value, 'notes', path),
+  };
+}
+
+/** Respuesta 200/201 con un proveedor (`GET /suppliers/{id}`, `POST`, `PATCH`). */
+export function normalizeSupplier(input: unknown): Supplier {
+  return parseSupplier(input, 'response');
+}
+
+/** Respuesta 200 de `GET /suppliers`: lista de proveedores. */
+export function normalizeSupplierList(input: unknown): Supplier[] {
+  if (!Array.isArray(input)) throw new UnexpectedResponseError('response', 'array', describeType(input));
+  return input.map((item, index) => parseSupplier(item, `response[${index}]`));
+}
+
+const SUPPLIER_FIELDS: readonly SupplierField[] = [
+  'name',
+  'country',
+  'categories',
+  'monthly_rate',
+  'currency',
+  'status',
+  'contract_renewal_date',
+  'contact_email',
+  'notes',
+];
+// Pydantic antepone este prefijo a los errores de validadores propios.
+const PYDANTIC_VALUE_ERROR_PREFIX = 'Value error, ';
+
+/**
+ * `detail` de un 422 (`[{loc, msg, type}]`, SPECS §4) → errores por campo.
+ * `loc` = ["body", "<campo>", ...]; si el campo no es del formulario (p. ej.
+ * un error de todo el body), `field` es `null`. Entradas mal formadas se
+ * ignoran. Nunca lanza.
+ */
+export function normalizeValidationErrors(input: unknown): FieldError[] {
+  if (!isObject(input) || !Array.isArray(input.detail)) return [];
+  const errors: FieldError[] = [];
+  for (const item of input.detail) {
+    if (!isObject(item) || typeof item.msg !== 'string' || !Array.isArray(item.loc)) continue;
+    const location = item.loc[0] === 'body' ? item.loc[1] : undefined;
+    const message = item.msg.startsWith(PYDANTIC_VALUE_ERROR_PREFIX)
+      ? item.msg.slice(PYDANTIC_VALUE_ERROR_PREFIX.length)
+      : item.msg;
+    errors.push({ field: isOneOf(SUPPLIER_FIELDS, location) ? location : null, message });
+  }
+  return errors;
 }

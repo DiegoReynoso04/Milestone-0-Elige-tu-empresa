@@ -1,5 +1,5 @@
-// Reglas estáticas sobre el código de producción del análisis de incidentes
-// (uis/backoffice/CLAUDE.md): `unknown` solo en services/normalizers.ts, nunca
+// Reglas estáticas sobre el código de producción del backoffice (incidentes y
+// proveedores; uis/backoffice/CLAUDE.md): `unknown` solo en services/normalizers.ts, nunca
 // `any` ni aserciones de tipo, y ninguna API que lea el archivo, persista datos
 // o conserve errores originales. Se analiza el código sin comentarios.
 
@@ -16,6 +16,9 @@ const PRODUCTION_FILES = PRODUCTION_DIRS.flatMap((dir) =>
     .filter((path) => /\.tsx?$/.test(path))
 ).sort();
 const UNKNOWN_ALLOWED_IN = 'services/normalizers.ts';
+// Único punto que serializa JSON de salida: los cuerpos de POST/PATCH del
+// directorio de proveedores, construidos campo a campo por el servicio.
+const JSON_STRINGIFY_ALLOWED_IN = 'lib/api-client.ts';
 
 function codeWithoutComments(relativePath) {
   return readFileSync(new URL(relativePath, APP_ROOT), 'utf8')
@@ -36,13 +39,38 @@ const FORBIDDEN = [
   ['customer_email', /customer_email/],
   ['cause', /\bcause\b/],
   ['originalError', /originalError/],
-  ['JSON.stringify', /JSON\.stringify/],
 ];
 
 describe('código de producción', () => {
   test('incluye la vista de incidentes y sus piezas', () => {
     for (const file of ['app/incidents/page.tsx', 'components/incidents/incident-analysis-view.tsx', 'hooks/use-incident-analysis.ts']) {
       assert.ok(PRODUCTION_FILES.includes(file), file);
+    }
+  });
+
+  test('incluye el directorio de proveedores y sus piezas', () => {
+    for (const file of [
+      'app/suppliers/page.tsx',
+      'components/suppliers/supplier-directory-view.tsx',
+      'hooks/use-supplier-directory.ts',
+      'services/suppliers.service.ts',
+    ]) {
+      assert.ok(PRODUCTION_FILES.includes(file), file);
+    }
+  });
+
+  test('JSON.stringify solo aparece en lib/api-client.ts', () => {
+    for (const file of PRODUCTION_FILES) {
+      const stringifies = /JSON\.stringify/.test(codeWithoutComments(file));
+      assert.equal(stringifies, file === JSON_STRINGIFY_ALLOWED_IN, file);
+    }
+  });
+
+  test('la UI no puede eliminar proveedores (sin DELETE ni borrado en el cliente)', () => {
+    for (const file of PRODUCTION_FILES) {
+      const code = codeWithoutComments(file);
+      assert.equal(/['"]DELETE['"]/.test(code), false, `${file} issues DELETE`);
+      assert.equal(/deleteSupplier|removeSupplier|Eliminar/i.test(code), false, `${file} exposes deletion`);
     }
   });
 

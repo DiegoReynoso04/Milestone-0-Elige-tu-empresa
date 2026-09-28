@@ -27,6 +27,9 @@ CORE_LITERALS = {
 }
 FORBIDDEN_IMPORTS = {"csv", "re", "statistics", "fractions"}
 FORBIDDEN_NAMES = {"ROUND_HALF_UP", "ROUND_HALF_EVEN", "quantize", "round", "parse_score", "print"}
+# Único módulo que puede imprimir: el seeder de proveedores es un script de consola
+# (confirma cuántos registros insertó) y no maneja datos de incidentes.
+PRINT_ALLOWED = {"seed.py"}
 
 
 def python_files(directory: Path) -> list[Path]:
@@ -59,6 +62,8 @@ class ApiDoesNotDuplicateCoreTests(unittest.TestCase):
                 elif isinstance(node, ast.ImportFrom) and node.module:
                     self.assertNotIn(node.module.split(".")[0], FORBIDDEN_IMPORTS, path.name)
                 elif isinstance(node, ast.Name):
+                    if node.id == "print" and path.relative_to(APP_DIR).as_posix() in PRINT_ALLOWED:
+                        continue
                     self.assertNotIn(node.id, FORBIDDEN_NAMES, f"{node.id} in {path.name}")
                 elif isinstance(node, ast.Attribute):
                     self.assertNotIn(node.attr, FORBIDDEN_NAMES, f"{node.attr} in {path.name}")
