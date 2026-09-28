@@ -10,7 +10,7 @@ Leer, en este orden:
 2. [`memory-bank/techContext.md`](./memory-bank/techContext.md) — stacks reales, decisiones de arquitectura vigentes.
 3. [`memory-bank/progress.md`](./memory-bank/progress.md) — qué está hecho, qué está en curso, problemas conocidos.
 
-Para el briefing de negocio completo (no el resumen), leer `contexts/CONTEXT.md` **si existe en tu checkout** — esa carpeta está en `.gitignore` y no viaja con el repositorio (ver nota en `techContext.md`). Si no la tienes, `memory-bank/projectbrief.md` es la referencia de negocio disponible. **No** el `CONTEXT.md` de la raíz que menciona `README.md` — ese archivo ya no existe.
+Para el briefing de negocio completo (no el resumen), leer `contexts/CONTEXT.md` **si existe en tu checkout** — esa carpeta está en `.gitignore` y no viaja con el repositorio (ver nota en `techContext.md`). Si no la tienes, el `README.md` raíz contiene ese mismo briefing (copia versionada desde el 2026-09-27). No existe ningún `CONTEXT.md` en la raíz.
 
 ## 2. Antes de trabajar en una carpeta concreta
 
@@ -21,9 +21,10 @@ Leer el `README.md` de esa carpeta de primer nivel (`uis/README.md`, `services/R
 ## 3. Reglas duras (detalle en `.agents/rules/`)
 
 - No inventar datos de negocio sobre Nexova ni campos/endpoints/estructuras de API que no estén documentados o verificados.
-- No crear una app, servicio o carpeta fuera del lugar que le corresponde según la convención del `README.md` raíz.
+- No crear una app, servicio o carpeta fuera del lugar que le corresponde según la convención de carpetas de [`.agents/rules/monorepo-structure.md`](./.agents/rules/monorepo-structure.md) y el `README.md` de la carpeta destino.
 - No añadir dependencias nuevas a ningún subproyecto sin autorización explícita.
 - No duplicar en `.agents/` ni en `memory-bank/` lo que ya documenta un `SPECS.md`/`CLAUDE.md` propio de una app — referenciar, no copiar.
+- Al cerrar cualquier tarea que modifique archivos del repo — **haya commit o no** — aplicar la skill [`memory-bank-sync`](./.agents/skills/memory-bank-sync/SKILL.md): `progress.md` siempre; `techContext.md` solo si cambió algo técnico; `projectbrief.md` solo si cambió algo de negocio. Tareas de solo lectura no tocan `memory-bank/`.
 
 ## 4. Flujo antes de commit (obligatorio, en este orden)
 
@@ -48,7 +49,7 @@ Ningún agente commitea código sin completar estos cinco pasos, en orden:
 
 2. **Revisar el diff real antes de comitear:** `git status --short` y `git diff --stat`. Confirmar que no se incluyen archivos generados (`node_modules/`, `.next/`, `*.log`, `*.tsbuildinfo`) ni dependencias no autorizadas en ningún `package.json` tocado.
 
-3. **Confirmar fidelidad al contexto de negocio:** ningún dato nuevo sobre Nexova (nombre, cifra, responsable, proceso) queda sin respaldo en `contexts/CONTEXT.md` (si existe localmente) o `memory-bank/projectbrief.md` — ver `.agents/rules/nexova-context.md`.
+3. **Confirmar fidelidad al contexto de negocio:** ningún dato nuevo sobre Nexova (nombre, cifra, responsable, proceso) queda sin respaldo en `contexts/CONTEXT.md` (si existe localmente), el `README.md` raíz, un documento de contexto de `docs/` o `memory-bank/projectbrief.md` — ver `.agents/rules/nexova-context.md`.
 
 4. **Sincronizar el banco de memoria:** aplicar la skill [`memory-bank-sync`](./.agents/skills/memory-bank-sync/SKILL.md) — actualizar `progress.md` (y `techContext.md`/`projectbrief.md` si corresponde). Sin esto, el banco de memoria queda desactualizado en días y la siguiente sesión de agente vuelve a empezar de cero.
 

@@ -8,7 +8,7 @@ scope: always-active
 
 ## Qué hacer antes de crear cualquier carpeta o archivo nuevo
 
-1. Leer la tabla "¿Dónde pongo esto?" y la sección "Guía de carpetas" de `README.md` (raíz).
+1. Consultar la tabla "Responsabilidad por carpeta" de esta misma regla (abajo) — es la referencia vigente de la convención. *(Hasta el 2026-09-27 la convención vivía en el `README.md` raíz de la plantilla; desde entonces ese archivo es el briefing de Nexova. La guía original completa, con "Guía de carpetas" y "¿Dónde pongo esto?", sigue en el historial: `git show fda5125:README.es.md`.)*
 2. Leer el `README.md` de la carpeta de primer nivel donde se va a trabajar (`uis/README.md`, `services/README.md`, `skills/README.md`, etc.) — cada una documenta qué va ahí y qué no.
 3. Si la carpeta ya tiene subproyectos (por ejemplo `uis/talent-pipeline-tracker/`), leer también el `README.md`/`CLAUDE.md`/`AGENTS.md` propio de ese subproyecto antes de tocarlo.
 
