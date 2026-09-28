@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nexova-incident-api"
 version = "0.1.0"
-description = "Nexova — API HTTP (FastAPI) sobre el núcleo de análisis de incidentes de soporte"
+description = "Nexova — API HTTP (FastAPI): análisis de incidentes de soporte y directorio de proveedores (TinyDB)"
 readme = "README.md"
 requires-python = ">=3.11"
-# Rangos acotados a las versiones probadas (sin lockfile).
+# Rangos acotados a las versiones probadas. Versiones exactas en uv.lock
+# (versionado; lo genera y actualiza `uv run`/`uv lock`).
 #
 # El núcleo `incident_analyzer` (packages/incident-analyzer) NO se declara
 # aquí a propósito: no está publicado y ese nombre está libre en PyPI, así que
@@ -18,12 +19,17 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.141,<0.142",
     "python-multipart>=0.0.32,<0.1",
+    "tinydb>=4.9,<4.10",
     "uvicorn>=0.53,<0.54",
 ]
+
+[project.scripts]
+# `uv run seed` (desde services/api): carga los proveedores iniciales en TinyDB.
+seed = "app.seed:main"
 
 [project.optional-dependencies]
 # httpx lo necesita fastapi.testclient.TestClient. Tests con unittest (sin pytest).
 dev = ["httpx>=0.28,<0.29"]
 
 [tool.setuptools]
-packages = ["app", "app.core", "app.modules", "app.modules.incidents"]
+packages = ["app", "app.core", "app.modules", "app.modules.incidents", "app.routes"]

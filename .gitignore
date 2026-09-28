@@ -16,3 +16,6 @@ __pycache__/
 # Datos reales de incidentes (contienen emails de clientes) y su exportación
 data/raw/incidents/
 results.csv
+
+# Base TinyDB local del directorio de proveedores (services/api)
+services/api/data/

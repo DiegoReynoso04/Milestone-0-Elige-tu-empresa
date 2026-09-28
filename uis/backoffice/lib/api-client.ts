@@ -1,5 +1,5 @@
 // Cliente HTTP genérico del backoffice (patrón de uis/talent-pipeline-tracker,
-// adaptado). No sabe nada de incidentes: transporta la petición, aplica el
+// adaptado). No sabe nada de incidentes ni de proveedores: transporta la petición, aplica el
 // timeout y traduce los fallos de transporte a errores tipados. Decidir qué
 // significa cada status es tarea de los servicios (`services/*.service.ts`).
 //
@@ -47,6 +47,8 @@ export type ResponseHandler<T> = (response: ApiResponse) => Promise<T>;
 export interface ApiClient {
   get<T>(path: string, options: RequestOptions, handle: ResponseHandler<T>): Promise<T>;
   postForm<T>(path: string, form: FormData, options: RequestOptions, handle: ResponseHandler<T>): Promise<T>;
+  postJson<T>(path: string, body: JsonValue, options: RequestOptions, handle: ResponseHandler<T>): Promise<T>;
+  patchJson<T>(path: string, body: JsonValue, options: RequestOptions, handle: ResponseHandler<T>): Promise<T>;
 }
 
 // ---------------------------------------------------------------------------
@@ -190,8 +192,16 @@ export function createApiClient(dependencies: ApiClientDependencies = {}): ApiCl
     }
   }
 
+  // Único punto que serializa JSON de salida: el cuerpo lo construye el servicio
+  // campo a campo a partir de datos del formulario (nunca respuestas de la API).
+  function jsonInit(method: 'POST' | 'PATCH', body: JsonValue): RequestInit {
+    return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  }
+
   return {
     get: (path, options, handle) => send(path, { method: 'GET' }, options, handle),
+    postJson: (path, body, options, handle) => send(path, jsonInit('POST', body), options, handle),
+    patchJson: (path, body, options, handle) => send(path, jsonInit('PATCH', body), options, handle),
     // Sin cabecera Content-Type: el navegador la genera con el boundary del multipart.
     postForm: (path, form, options, handle) => send(path, { method: 'POST', body: form }, options, handle),
   };

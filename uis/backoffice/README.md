@@ -1,6 +1,6 @@
 # Backoffice
 
-Panel administrativo interno de **Nexova Solutions**. Tiene dos vistas: la portada con la ficha de la empresa y el **análisis de incidentes de soporte** (`/incidents`). No implementa autenticación ni ninguna otra capacidad de back-office.
+Panel administrativo interno de **Nexova Solutions**. Tiene tres vistas: la portada con la ficha de la empresa, el **análisis de incidentes de soporte** (`/incidents`) y el **directorio de proveedores** (`/suppliers`). No implementa autenticación ni ninguna otra capacidad de back-office.
 
 ## Vistas
 
@@ -20,13 +20,25 @@ Fase 3 del procesador de incidentes de Nexova (Atención al Cliente — Roberto 
 - **Privacidad:** el frontend **no lee ni muestra el contenido del CSV** (el archivo se envía tal cual; no hay `FileReader`, `file.text()` ni vista previa) y nunca muestra `customer_email` ni datos de filas: solo nombre y tamaño del archivo, las métricas agregadas y mensajes de error fijos. No hay logs ni persistencia en el navegador, y nada se envía a servicios externos.
 - **Sin autenticación:** igual que la API, es de **uso local**.
 
+### `/suppliers` — directorio de proveedores
+
+Registro oficial de proveedores de Nexova (Patricia Solís, HR Manager). Requisitos: [`docs/ligthweight-storage-api.md`](../../docs/ligthweight-storage-api.md); contrato: [`services/api/SPECS.md`](../../services/api/SPECS.md) Parte B. Se abre desde el enlace **«Proveedores»** de la cabecera (o en `http://localhost:3000/suppliers`).
+
+- Listado cargado de `GET /suppliers` con nombre, país, categorías, tarifa mensual y moneda (con la fecha de su última actualización), renovación y estado.
+- Filtros por país y categoría, combinables, que piden a la API el listado filtrado sin recargar la página.
+- Alta con formulario (`POST /suppliers`): valida en cliente los campos requeridos y muestra por campo los errores 422 de la API (p. ej. moneda incoherente con el país).
+- Cambio de tarifa (`PATCH /suppliers/{id}/rate`) y activar/suspender (`PATCH /suppliers/{id}/status`) en cada fila; la respuesta de la API se refleja al momento.
+- Badges `active` / `suspended` (color + símbolo). Las renovaciones de los próximos 60 días (fecha local del navegador) se destacan con un borde lateral y la etiqueta «Renueva en N días»; de los 15 proveedores del seed, 10 tienen fecha de renovación (todas ya pasadas) y 5 no tienen fecha, así que ninguno aparece como renovación próxima: solo se ve con proveedores registrados con una fecha próxima.
+- **Sin botón de eliminar**: el endpoint `DELETE` existe en la API, pero los proveedores se suspenden, no se borran.
+- Necesita la API en marcha y, para ver datos, el seeder ejecutado (`cd services/api && uv run seed`).
+
 ## Stack técnico
 
-Mismo stack que [`uis/talent-pipeline-tracker`](../talent-pipeline-tracker/README.md), decisión registrada en [`memory-bank/techContext.md`](../../memory-bank/techContext.md): Next.js 16 (App Router), React 19, TypeScript estricto, Tailwind CSS v4 (`@import "tailwindcss"` en `app/globals.css`, sin `tailwind.config.ts`). Sin librerías de estado externas y sin dependencias añadidas para `/incidents`.
+Mismo stack que [`uis/talent-pipeline-tracker`](../talent-pipeline-tracker/README.md), decisión registrada en [`memory-bank/techContext.md`](../../memory-bank/techContext.md): Next.js 16 (App Router), React 19, TypeScript estricto, Tailwind CSS v4 (`@import "tailwindcss"` en `app/globals.css`, sin `tailwind.config.ts`). Sin librerías de estado externas y sin dependencias añadidas para `/incidents` ni `/suppliers`.
 
 ## Puesta en marcha
 
-Requisitos: Node.js 20 o superior para la app; **Node.js 24** para ejecutar los tests (`node --test` con TypeScript sin dependencias). Para `/incidents`, además, la API de `services/api` en marcha (ver su README).
+Requisitos: Node.js 20 o superior para la app; **Node.js 24** para ejecutar los tests (`node --test` con TypeScript sin dependencias). Para `/incidents` y `/suppliers`, además, la API de `services/api` en marcha (ver su README); para ver proveedores, el seeder ejecutado (`cd services/api && uv run seed`).
 
 ```bash
 npm install
@@ -38,7 +50,7 @@ npm run start                # sirve el build
 
 | Variable | Valor local | Uso |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | URL base de `services/api`. Se incorpora al JavaScript **en tiempo de build** (`NEXT_PUBLIC_*`). Si falta, `/incidents` muestra un error de configuración al usarla; el build no falla |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | URL base de `services/api`. Se incorpora al JavaScript **en tiempo de build** (`NEXT_PUBLIC_*`). Si falta, `/incidents` y `/suppliers` muestran un error de configuración al usarlas; el build no falla |
 
 `.env.example` es solo documentación: Next.js no lo carga (solo lee `.env`, `.env.local`, `.env.$(NODE_ENV)` y `.env.$(NODE_ENV).local`).
 
@@ -55,7 +67,7 @@ npm run build
 node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/support/resolve-alias.mjs --test --test-timeout=10000 "tests/*.test.mjs"
 ```
 
-Los tests (`tests/*.test.mjs`) usan el runner nativo de Node 24, sin dependencias: normalizadores, cliente HTTP, servicio de incidentes, estado/sesión del hook (cancelación, carreras, exportación) y una revisión estática del código de producción (sin `any`, `unknown` solo en `services/normalizers.ts`, `fetch` solo en `lib/api-client.ts`, sin lectura del archivo ni persistencia). `tests/support/resolve-alias.mjs` resuelve el alias `@/` para Node sin tocar `tsconfig.json`. El aviso `MODULE_TYPELESS_PACKAGE_JSON` se silencia porque `package.json` no declara `"type"`.
+Los tests (`tests/*.test.mjs`) usan el runner nativo de Node 24, sin dependencias: normalizadores, cliente HTTP, servicios de incidentes y de proveedores, estado/sesión de los hooks (cancelación, carreras, exportación, recarga tras cambios), vocabulario y renovaciones de proveedores contra el CONTEXT, y una revisión estática del código de producción (sin `any`, `unknown` solo en `services/normalizers.ts`, `fetch` y `JSON.stringify` solo en `lib/api-client.ts`, sin lectura del archivo, sin persistencia y sin borrado de proveedores). `tests/support/resolve-alias.mjs` resuelve el alias `@/` para Node sin tocar `tsconfig.json`. El aviso `MODULE_TYPELESS_PACKAGE_JSON` se silencia porque `package.json` no declara `"type"`.
 
 La unión con React (montaje/desmontaje) y la descarga real se validan manualmente en el navegador.
 
@@ -66,20 +78,26 @@ app/
 ├── layout.tsx                  # layout raíz: cabecera con enlace a / y navegación a /incidents
 ├── page.tsx                    # portada: ficha de empresa + roadmap
 ├── incidents/page.tsx          # /incidents: Server Component (metadata) que renderiza la vista cliente
+├── suppliers/page.tsx          # /suppliers: Server Component (metadata) que renderiza el directorio
 └── globals.css                 # Tailwind v4 + paleta y tokens semánticos compartidos con talent-pipeline-tracker
 
 components/
 ├── ui/                         # primitivas: button, loading-spinner, alert, nav-link
-└── incidents/                  # vista cliente (incident-analysis-view) + componentes presentacionales
+├── incidents/                  # vista cliente (incident-analysis-view) + componentes presentacionales
+└── suppliers/                  # vista cliente (supplier-directory-view) + filtros, tabla, formulario, badges
 
 hooks/use-incident-analysis.ts  # estado de /incidents: reducer + sesión (cancelación, carreras, exportación)
+hooks/use-supplier-directory.ts # estado de /suppliers: reducer + sesión (filtros, alta, tarifa, estado, carreras)
 services/
 ├── incidents.service.ts        # frontera HTTP de incidentes (prevalidación UX, mapeo de errores, export)
+├── suppliers.service.ts        # frontera HTTP de proveedores (campos requeridos, body, 422 por campo)
 └── normalizers.ts              # única frontera con `unknown` de red
 lib/
 ├── api-client.ts               # cliente HTTP genérico (timeout, errores tipados, sin credentials)
+├── supplier-renewal.ts         # renovaciones en los próximos 60 días (presentación)
 └── company.ts                  # datos de Nexova, cada campo citado desde contexts/CONTEXT.md
-types/incidents.ts              # contrato que recibe el frontend
+types/incidents.ts              # contrato que recibe el frontend (incidentes)
+types/suppliers.ts              # contrato y vocabulario del directorio de proveedores
 tests/                          # tests node --test (.mjs) + support/
 
 .env.example                    # variables de entorno documentadas (sin secretos)

@@ -1,4 +1,11 @@
-# services/api — API del analizador de incidentes (Nexova)
+# services/api — API de Nexova
+
+Una sola aplicación FastAPI con dos dominios:
+
+- **Analizador de incidentes** (`/api/incidents/*`) — descrito a continuación.
+- **Directorio de proveedores** (`/suppliers*`, FastAPI + TinyDB + Pydantic) — ver [Directorio de proveedores](#directorio-de-proveedores) y `SPECS.md` Parte B.
+
+## Analizador de incidentes
 
 API HTTP (FastAPI) que expone el análisis del CSV de incidentes de soporte de Nexova (Atención al Cliente — Roberto Díaz). Es una **capa fina** sobre el núcleo [`packages/incident-analyzer`](../../packages/incident-analyzer/README.md): no contiene reglas, métricas, redondeo ni formato de exportación propios. La CLI [`scripts/analyze.py`](../../scripts/analyze.py) usa el mismo núcleo, así que el mismo CSV da los mismos números por ambas vías.
 
@@ -14,12 +21,18 @@ API HTTP (FastAPI) que expone el análisis del CSV de incidentes de soporte de N
 | `POST` | `/api/incidents/analyze` | Analiza un CSV (`multipart/form-data`, campo `file`) y devuelve las métricas en JSON |
 | `GET` | `/api/incidents/results/export` | Descarga `results.csv` (`metric,value`) del último análisis |
 | `GET` | `/health` | Liveness |
+| `POST` | `/suppliers` | Registra un proveedor (201) |
+| `GET` | `/suppliers` | Lista proveedores; filtros opcionales `?country=` y `?category=` |
+| `GET` | `/suppliers/{id}` | Detalle de un proveedor (404 si no existe) |
+| `PATCH` | `/suppliers/{id}/rate` | Cambia `monthly_rate` y registra `updated_at` |
+| `PATCH` | `/suppliers/{id}/status` | `active` / `suspended` |
+| `DELETE` | `/suppliers/{id}` | Elimina un proveedor (204; la UI no lo expone) |
 
 Documentación interactiva de FastAPI en `http://localhost:8000/docs` con el servidor arrancado.
 
 ## Requisitos
 
-Python 3.11 o superior (verificado con 3.14.6). Dependencias (`pyproject.toml`), acotadas a las versiones probadas y sin lockfile: `fastapi>=0.141,<0.142`, `python-multipart>=0.0.32,<0.1`, `uvicorn>=0.53,<0.54` y, para tests (extra `dev`), `httpx>=0.28,<0.29`. Sin pytest ni librerías de configuración.
+Python 3.11 o superior (verificado con 3.14.6). Dependencias (`pyproject.toml`), acotadas a las versiones probadas (versiones exactas en [`uv.lock`](./uv.lock), versionado): `fastapi>=0.141,<0.142`, `python-multipart>=0.0.32,<0.1`, `uvicorn>=0.53,<0.54`, `tinydb>=4.9,<4.10` y, para tests (extra `dev`), `httpx>=0.28,<0.29`. Sin pytest ni librerías de configuración.
 
 ## Instalación (desde la raíz del monorepo)
 
@@ -39,7 +52,7 @@ cd services/api
 uvicorn app.main:create_app --factory --port 8000 --workers 1
 ```
 
-**Siempre con un único worker**: el último análisis vive en memoria del proceso.
+**Siempre con un único worker**: el último análisis vive en memoria del proceso y TinyDB (directorio de proveedores) solo se protege con un bloqueo dentro del proceso.
 
 ### Configuración
 
@@ -48,11 +61,48 @@ Variables de entorno (la API **no** carga archivos `.env`; [`.env.example`](./.e
 | Variable | Por defecto | Uso |
 |---|---|---|
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | Orígenes permitidos, separados por comas. `*` se rechaza al arrancar |
+| `SUPPLIERS_DB_PATH` | `services/api/data/suppliers.json` | Archivo TinyDB del directorio de proveedores (API y seeder). `data/` está en `.gitignore` |
 | `MAX_UPLOAD_BYTES` | `1048576` (1 MiB) | Límite técnico del **body HTTP completo** (CSV + cabeceras y delimitadores multipart), **no del CSV**: el CSV máximo es algo menor. Decisión de la API, no requisito del cliente. Detalle en `SPECS.md` §3.1 |
 
 ```powershell
 $env:CORS_ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:3001"
+$env:SUPPLIERS_DB_PATH = "C:\ruta\absoluta\suppliers.json"   # bash: export SUPPLIERS_DB_PATH=/ruta/absoluta/suppliers.json
 ```
+
+Una ruta relativa en `SUPPLIERS_DB_PATH` se resuelve desde el directorio en el que se lanza cada proceso: para que la API y el seeder usen el mismo archivo, usar una ruta absoluta o lanzar ambos desde `services/api`. Sin la variable, los dos usan `services/api/data/suppliers.json`.
+
+## Directorio de proveedores
+
+Registro oficial de proveedores de Nexova (Patricia Solís, HR Manager). Contexto: [`docs/ligthweight-storage-api.md`](../../docs/ligthweight-storage-api.md); contrato y decisiones: `SPECS.md` Parte B.
+
+- **Persistencia:** TinyDB en `data/suppliers.json` (configurable con `SUPPLIERS_DB_PATH`). Los datos sobreviven a reinicios. La API **no** carga datos por sí sola: sin seeder, el directorio empieza vacío.
+- **Validación:** Pydantic rechaza con 422 cualquier entrada que no cumpla el modelo (país, moneda coherente, categorías, tarifa > 0, estado, fecha `YYYY-MM-DD`) antes de tocar la base.
+- **`updated_at`:** lo genera el sistema (UTC) al crear y en cada cambio de tarifa; el cambio de estado no lo modifica.
+- **Estados:** `active` / `suspended`. Suspender es la forma prevista de dar de baja un proveedor (se conserva el historial); `DELETE` existe en la API pero el backoffice no lo usa (`SPECS.md` §10).
+- **Arquitectura:** `routes/suppliers.py` (endpoints) → modelos Pydantic de `models.py` (validan la entrada; 422 si no cumple) → `SupplierRepository` de `database.py` (única capa que toca TinyDB). El seeder (`seed.py`) usa el mismo repositorio y la misma validación.
+- **Códigos HTTP:** `201` alta · `200` consultas y `PATCH` · `204` borrado · `404` `supplier_not_found` (id inexistente) · `422` `validation_error` (cuerpo, filtro o id inválidos; lista `{loc, msg, type}`). Filtros de `GET /suppliers`: `country` (`Spain`/`USA`) y `category` (una de las 9 del contexto), combinables. Contrato completo: `SPECS.md` §11–§12.
+
+**Puesta en marcha del directorio** (desde cero):
+
+1. Instalar el venv del servicio (sección [Instalación](#instalación-desde-la-raíz-del-monorepo)).
+2. Cargar los proveedores: `cd services/api && uv run seed` (ver abajo).
+3. Arrancar la API (sección [Arranque](#arranque)); Swagger en `http://localhost:8000/docs`.
+4. Para la interfaz web, arrancar el backoffice y abrir `http://localhost:3000/suppliers` (ver [`uis/backoffice/README.md`](../../uis/backoffice/README.md)).
+
+### Seeder
+
+Carga los 15 proveedores del contexto. Idempotente: solo inserta los que no existen (por `name`) y confirma en consola cuántos insertó.
+
+```bash
+cd services/api
+uv run seed
+```
+
+`uv run` usa el `.venv` de `services/api` (el mismo del flujo con pip) y lo sincroniza con `pyproject.toml`/`uv.lock` sin eliminar paquetes extra, así que el núcleo `incident-analyzer` instalado con pip se conserva. El seeder no importa el núcleo, por lo que `uv run seed` también funciona en un clon limpio con solo uv instalado.
+
+> **Nota sobre `uv sync`:** a diferencia de `uv run`, `uv sync` sincroniza el entorno de forma **exacta** con `uv.lock` y elimina los paquetes que no declara `pyproject.toml`; en este `.venv` eso incluye el núcleo `incident-analyzer` (instalado aparte, ver Instalación) y el extra `dev` si no se pide, con lo que la API de incidentes y los tests dejarían de funcionar hasta reinstalarlos. Para cargar los proveedores, la operación prevista es `uv run seed`.
+
+Sin uv, con el venv del servicio ya instalado: `python -m app.seed` (desde `services/api`). Ejecutarlo con la API parada o sin peticiones de escritura en curso (TinyDB no coordina procesos distintos).
 
 ## Limitaciones conocidas (deliberadas en esta fase)
 
@@ -84,6 +134,8 @@ La suite del núcleo (Fase 1) no necesita el venv: `python -m unittest discover 
 | `test_errors.py` | 400/404/405 (con `Allow`)/413/415/422, límite con y sin `Content-Length` incluida la frontera exacta (`MAX` → 200, `MAX+1` → 413), ausencia de volcado a disco, configuración, CORS |
 | `test_privacy.py` | Ningún email ni dato de registro en respuestas, errores, export ni logs; 500 opaco con excepción que contiene un email |
 | `test_architecture.py` | La API no duplica reglas, categorías, estados, regex, lógica de score ni redondeo; solo usa la API pública del núcleo; el núcleo no importa FastAPI |
+| `test_suppliers_api.py` | Proveedores: modelo = CONTEXT, 422 antes de tocar TinyDB (país, estado, tarifa ≤ 0, moneda, categorías, fecha, campos del sistema), 201/404/204, filtros país/categoría combinados, `updated_at` en cambio de tarifa y no en cambio de estado, CORS PATCH/DELETE |
+| `test_suppliers_seed.py` | Seeder = `SUPPLIERS_SEED` del CONTEXT, idempotente, no sobrescribe, salida en consola; persistencia tras reiniciar la app |
 
 Los tests reutilizan el fixture sintético del núcleo (`example.invalid`). El núcleo tiene su propia suite (ver su README).
 
@@ -98,6 +150,10 @@ app/
 │   ├── config.py            # Settings desde variables de entorno (stdlib)
 │   ├── errors.py            # formato {detail, code}, 422 saneado, middleware de 500 opaco
 │   └── limits.py            # límite del body (Content-Length + conteo en streaming)
+├── models.py                # Proveedores: modelos Pydantic, categorías y estados del contexto
+├── database.py              # Proveedores: TinyDB (SupplierRepository, thread-safe, un archivo JSON)
+├── seed.py                  # Proveedores: SUPPLIERS_SEED + entry point de `uv run seed`
+├── routes/suppliers.py      # Proveedores: 6 endpoints /suppliers
 └── modules/incidents/
     ├── router.py            # 2 endpoints: request → servicio → respuesta
     ├── schemas.py           # contrato JSON (traducción de AnalysisResult, sin cálculo)

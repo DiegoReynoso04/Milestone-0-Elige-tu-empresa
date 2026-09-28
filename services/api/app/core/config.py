@@ -7,12 +7,16 @@ archivos `.env`; `.env.example` solo documenta las variables.
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
 DEFAULT_CORS_ALLOWED_ORIGINS = ("http://localhost:3000",)
 # 1 MiB. Decisión técnica de esta API (D-API-4), no un requisito del contexto
 # de Nexova. Con este valor el multipart nunca supera el umbral a partir del
 # cual Starlette vuelca el archivo a disco (SpooledTemporaryFile de 1 MiB).
 DEFAULT_MAX_UPLOAD_BYTES = 1024 * 1024
+# Archivo TinyDB del directorio de proveedores: services/api/data/ (ignorado por git).
+SERVICE_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SUPPLIERS_DB_PATH = SERVICE_ROOT / "data" / "suppliers.json"
 
 
 class ConfigError(ValueError):
@@ -23,6 +27,7 @@ class ConfigError(ValueError):
 class Settings:
     cors_allowed_origins: tuple[str, ...] = DEFAULT_CORS_ALLOWED_ORIGINS
     max_upload_bytes: int = DEFAULT_MAX_UPLOAD_BYTES
+    suppliers_db_path: Path = DEFAULT_SUPPLIERS_DB_PATH
 
     def __post_init__(self) -> None:
         if "*" in self.cors_allowed_origins:
@@ -34,6 +39,7 @@ class Settings:
     def from_env(cls, environ: Mapping[str, str] = os.environ) -> "Settings":
         origins = environ.get("CORS_ALLOWED_ORIGINS")
         max_upload = environ.get("MAX_UPLOAD_BYTES")
+        suppliers_db_path = environ.get("SUPPLIERS_DB_PATH", "").strip()
         try:
             max_upload_bytes = int(max_upload) if max_upload is not None else DEFAULT_MAX_UPLOAD_BYTES
         except ValueError:
@@ -45,4 +51,5 @@ class Settings:
                 else DEFAULT_CORS_ALLOWED_ORIGINS
             ),
             max_upload_bytes=max_upload_bytes,
+            suppliers_db_path=Path(suppliers_db_path) if suppliers_db_path else DEFAULT_SUPPLIERS_DB_PATH,
         )

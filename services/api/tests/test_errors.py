@@ -265,13 +265,15 @@ class CorsTests(unittest.TestCase):
     def test_disallowed_origin(self) -> None:
         self.assertNotIn("access-control-allow-origin", self.preflight("http://evil.example", "POST"))
 
-    def test_only_get_and_post_are_allowed(self) -> None:
+    def test_only_declared_methods_are_allowed(self) -> None:
+        # GET/POST (incidentes y proveedores) + PATCH/DELETE (directorio de proveedores).
         response = make_client().options(
-            ANALYZE_URL, headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "DELETE"}
+            ANALYZE_URL, headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "PUT"}
         )
         self.assertEqual(response.status_code, 400)
-        allowed = response.headers.get("access-control-allow-methods", "")
-        self.assertNotIn("DELETE", allowed)
+        allowed = {method.strip() for method in response.headers.get("access-control-allow-methods", "").split(",")}
+        self.assertNotIn("PUT", allowed)
+        self.assertLessEqual({"GET", "POST", "PATCH", "DELETE"}, allowed)
 
     def test_export_headers_are_exposed_to_the_browser(self) -> None:
         client = make_client()

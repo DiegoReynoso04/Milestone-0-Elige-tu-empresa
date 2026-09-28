@@ -11,4 +11,4 @@ Cada subcarpeta dentro de `services/` debe corresponder a **un servicio concreto
 
 | Servicio | Ruta | Objetivo | Stack | Estado |
 |---|---|---|---|---|
-| API del analizador de incidentes | [`api/`](./api/README.md) | Capa HTTP sobre `packages/incident-analyzer` para el análisis del CSV de tickets de soporte de Nexova (Atención al Cliente, Roberto Díaz). Solo uso local, sin autenticación | Python 3.11+, FastAPI, uvicorn | Fase 2 del analizador de incidentes |
+| API de Nexova | [`api/`](./api/README.md) | Una sola app FastAPI: (1) capa HTTP sobre `packages/incident-analyzer` para el análisis del CSV de tickets de soporte de Nexova (Atención al Cliente, Roberto Díaz); (2) directorio de proveedores `/suppliers` persistido en TinyDB, con `uv run seed` (Patricia Solís, RRHH). Solo uso local, sin autenticación | Python 3.11+, FastAPI, Pydantic, TinyDB, uvicorn | Fase 2 del analizador de incidentes; API de almacenamiento ligero (`docs/ligthweight-storage-api.md`) |
