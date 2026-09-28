@@ -22,13 +22,13 @@ Fase 3 del procesador de incidentes de Nexova (Atención al Cliente — Roberto 
 
 ### `/suppliers` — directorio de proveedores
 
-Registro oficial de proveedores de Nexova (Patricia Solís, HR Manager). Requisitos: [`docs/ligthweight-storage-api.md`](../../docs/ligthweight-storage-api.md); contrato: [`services/api/SPECS.md`](../../services/api/SPECS.md) Parte B.
+Registro oficial de proveedores de Nexova (Patricia Solís, HR Manager). Requisitos: [`docs/ligthweight-storage-api.md`](../../docs/ligthweight-storage-api.md); contrato: [`services/api/SPECS.md`](../../services/api/SPECS.md) Parte B. Se abre desde el enlace **«Proveedores»** de la cabecera (o en `http://localhost:3000/suppliers`).
 
 - Listado cargado de `GET /suppliers` con nombre, país, categorías, tarifa mensual y moneda (con la fecha de su última actualización), renovación y estado.
 - Filtros por país y categoría, combinables, que piden a la API el listado filtrado sin recargar la página.
 - Alta con formulario (`POST /suppliers`): valida en cliente los campos requeridos y muestra por campo los errores 422 de la API (p. ej. moneda incoherente con el país).
 - Cambio de tarifa (`PATCH /suppliers/{id}/rate`) y activar/suspender (`PATCH /suppliers/{id}/status`) en cada fila; la respuesta de la API se refleja al momento.
-- Badges `active` / `suspended` (color + símbolo) y renovaciones en los próximos 60 días destacadas.
+- Badges `active` / `suspended` (color + símbolo). Las renovaciones de los próximos 60 días (fecha local del navegador) se destacan con un borde lateral y la etiqueta «Renueva en N días»; de los 15 proveedores del seed, 10 tienen fecha de renovación (todas ya pasadas) y 5 no tienen fecha, así que ninguno aparece como renovación próxima: solo se ve con proveedores registrados con una fecha próxima.
 - **Sin botón de eliminar**: el endpoint `DELETE` existe en la API, pero los proveedores se suspenden, no se borran.
 - Necesita la API en marcha y, para ver datos, el seeder ejecutado (`cd services/api && uv run seed`).
 
@@ -38,7 +38,7 @@ Mismo stack que [`uis/talent-pipeline-tracker`](../talent-pipeline-tracker/READM
 
 ## Puesta en marcha
 
-Requisitos: Node.js 20 o superior para la app; **Node.js 24** para ejecutar los tests (`node --test` con TypeScript sin dependencias). Para `/incidents`, además, la API de `services/api` en marcha (ver su README).
+Requisitos: Node.js 20 o superior para la app; **Node.js 24** para ejecutar los tests (`node --test` con TypeScript sin dependencias). Para `/incidents` y `/suppliers`, además, la API de `services/api` en marcha (ver su README); para ver proveedores, el seeder ejecutado (`cd services/api && uv run seed`).
 
 ```bash
 npm install
@@ -50,7 +50,7 @@ npm run start                # sirve el build
 
 | Variable | Valor local | Uso |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | URL base de `services/api`. Se incorpora al JavaScript **en tiempo de build** (`NEXT_PUBLIC_*`). Si falta, `/incidents` muestra un error de configuración al usarla; el build no falla |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | URL base de `services/api`. Se incorpora al JavaScript **en tiempo de build** (`NEXT_PUBLIC_*`). Si falta, `/incidents` y `/suppliers` muestran un error de configuración al usarlas; el build no falla |
 
 `.env.example` es solo documentación: Next.js no lo carga (solo lee `.env`, `.env.local`, `.env.$(NODE_ENV)` y `.env.$(NODE_ENV).local`).
 

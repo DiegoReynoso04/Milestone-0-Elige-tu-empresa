@@ -52,7 +52,7 @@ cd services/api
 uvicorn app.main:create_app --factory --port 8000 --workers 1
 ```
 
-**Siempre con un único worker**: el último análisis vive en memoria del proceso.
+**Siempre con un único worker**: el último análisis vive en memoria del proceso y TinyDB (directorio de proveedores) solo se protege con un bloqueo dentro del proceso.
 
 ### Configuración
 
@@ -66,7 +66,10 @@ Variables de entorno (la API **no** carga archivos `.env`; [`.env.example`](./.e
 
 ```powershell
 $env:CORS_ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:3001"
+$env:SUPPLIERS_DB_PATH = "C:\ruta\absoluta\suppliers.json"   # bash: export SUPPLIERS_DB_PATH=/ruta/absoluta/suppliers.json
 ```
+
+Una ruta relativa en `SUPPLIERS_DB_PATH` se resuelve desde el directorio en el que se lanza cada proceso: para que la API y el seeder usen el mismo archivo, usar una ruta absoluta o lanzar ambos desde `services/api`. Sin la variable, los dos usan `services/api/data/suppliers.json`.
 
 ## Directorio de proveedores
 
@@ -75,6 +78,16 @@ Registro oficial de proveedores de Nexova (Patricia Solís, HR Manager). Context
 - **Persistencia:** TinyDB en `data/suppliers.json` (configurable con `SUPPLIERS_DB_PATH`). Los datos sobreviven a reinicios. La API **no** carga datos por sí sola: sin seeder, el directorio empieza vacío.
 - **Validación:** Pydantic rechaza con 422 cualquier entrada que no cumpla el modelo (país, moneda coherente, categorías, tarifa > 0, estado, fecha `YYYY-MM-DD`) antes de tocar la base.
 - **`updated_at`:** lo genera el sistema (UTC) al crear y en cada cambio de tarifa; el cambio de estado no lo modifica.
+- **Estados:** `active` / `suspended`. Suspender es la forma prevista de dar de baja un proveedor (se conserva el historial); `DELETE` existe en la API pero el backoffice no lo usa (`SPECS.md` §10).
+- **Arquitectura:** `routes/suppliers.py` (endpoints) → modelos Pydantic de `models.py` (validan la entrada; 422 si no cumple) → `SupplierRepository` de `database.py` (única capa que toca TinyDB). El seeder (`seed.py`) usa el mismo repositorio y la misma validación.
+- **Códigos HTTP:** `201` alta · `200` consultas y `PATCH` · `204` borrado · `404` `supplier_not_found` (id inexistente) · `422` `validation_error` (cuerpo, filtro o id inválidos; lista `{loc, msg, type}`). Filtros de `GET /suppliers`: `country` (`Spain`/`USA`) y `category` (una de las 9 del contexto), combinables. Contrato completo: `SPECS.md` §11–§12.
+
+**Puesta en marcha del directorio** (desde cero):
+
+1. Instalar el venv del servicio (sección [Instalación](#instalación-desde-la-raíz-del-monorepo)).
+2. Cargar los proveedores: `cd services/api && uv run seed` (ver abajo).
+3. Arrancar la API (sección [Arranque](#arranque)); Swagger en `http://localhost:8000/docs`.
+4. Para la interfaz web, arrancar el backoffice y abrir `http://localhost:3000/suppliers` (ver [`uis/backoffice/README.md`](../../uis/backoffice/README.md)).
 
 ### Seeder
 
