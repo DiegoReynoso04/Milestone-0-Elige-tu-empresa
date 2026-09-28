@@ -1,6 +1,6 @@
 # Project Brief — Nexova Solutions
 
-> Fuente de verdad ampliada: `contexts/CONTEXT.md`. **Esa carpeta está en `.gitignore` (raíz, línea 8) y no viaja con el repositorio** — solo existe en checkouts locales que ya la tenían. Este archivo es el resumen derivado de ese briefing, y es **el único contexto de negocio que sí está versionado y disponible para cualquiera que clone el repo**. Si tienes acceso local a `contexts/CONTEXT.md`, úsalo para profundizar; si no, este resumen debe bastar.
+> Fuente de verdad ampliada: `contexts/CONTEXT.md`. **Esa carpeta está en `.gitignore` (raíz, línea 8) y no viaja con el repositorio** — solo existe en checkouts locales que ya la tenían. Desde el 2026-09-27 (commit `6807f5e`) el **`README.md` raíz contiene ese mismo briefing** (contenido idéntico), así que el briefing general sí está versionado. Este archivo es el resumen derivado, más lo construido en el repo; los briefings por hito (`contexts/hitoN/*.md`) siguen siendo solo locales.
 
 ## La empresa
 
@@ -39,4 +39,4 @@ Cualquier funcionalidad nueva para estas áreas debe partir de un contexto de hi
 
 ## Regla de trazabilidad
 
-Ningún dato de negocio (nombre, cifra, responsable, proceso) se añade a este repositorio — código, UI o documentación — sin poder señalarse en `contexts/CONTEXT.md` o en un `contexts/hitoN/*.md`. Ver `.agents/rules/nexova-context.md`.
+Ningún dato de negocio (nombre, cifra, responsable, proceso) se añade a este repositorio — código, UI o documentación — sin poder señalarse en una fuente de contexto: `contexts/CONTEXT.md` (o su copia versionada, el `README.md` raíz), un `contexts/hitoN/*.md`, o el documento de contexto de un proyecto versionado en `docs/` (p. ej. `docs/COMPANY_INCIDENT_FILE_ANALIZER_PROJECT.md`). Ver `.agents/rules/nexova-context.md`.

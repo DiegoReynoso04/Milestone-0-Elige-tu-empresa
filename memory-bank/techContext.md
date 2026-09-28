@@ -19,7 +19,7 @@ Una responsabilidad por carpeta de primer nivel: `uis/` (frontends), `services/`
 | Website público | `uis/website/` | HTML estático + Tailwind CSS v4 vía Play CDN (`@tailwindcss/browser@4`), sin build step, Schema.org JSON-LD | Hito 1, desplegado en Netlify (`netlify.toml` en raíz) |
 | Domain models / scoring | `src/` (raíz) | TypeScript estricto (`tsconfig.json` modo `strict` + `noUncheckedIndexedAccess`), tests con `node:test` nativo (sin Jest/Vitest), ejecutados vía `tsx` | Hito 2 |
 | Talent Pipeline Tracker | `uis/talent-pipeline-tracker/` | Next.js 16.3.2 (App Router) + React 19.2.8 + TypeScript estricto + Tailwind CSS v4 (`@import "tailwindcss"`, sin `tailwind.config.ts`). Solo hooks nativos de React, sin librerías de estado externas. Reglas propias detalladas en su `CLAUDE.md`/`SPECS.md` — **no duplicadas aquí, solo referenciadas** | Hito 3 |
-| Backoffice interno | `uis/backoffice/` | Next.js 16 + React 19 + TypeScript, mismo patrón que `talent-pipeline-tracker` (ver decisión abajo) | Este cambio ("Monorepo AI Setup") |
+| Backoffice interno | `uis/backoffice/` | Next.js 16.3.2 + React 19.2.8 + TypeScript + Tailwind CSS v4, mismo patrón que `talent-pipeline-tracker` (ver decisión abajo) | Monorepo AI Setup (2026-09-14, PR #4) |
 | Incident analyzer (UI) | `uis/backoffice/` → ruta `/incidents` | Mismo stack del backoffice, **sin dependencias nuevas**. Tests con el runner nativo de **Node 24** (`node --test` sobre `.mjs` que importan los `.ts`, TypeScript por borrado de tipos). Reglas en `uis/backoffice/CLAUDE.md` — no duplicadas aquí | Procesador de incidentes, Fase 3 (2026-09-23) |
 | Incident analyzer (núcleo) | `packages/incident-analyzer/` | **Python ≥ 3.11, solo librería estándar** (`csv`, `re`, `dataclasses`, `decimal`, `enum`). Tests con `unittest` (sin pytest). `pyproject.toml` con `dependencies = []` (build backend setuptools, solo si alguien lo instala). Detalle de módulos y reglas en su `README.md` — no duplicado aquí | Procesador de incidentes, Fase 1 (2026-09-22) |
 | Incident analyzer (CLI) | `scripts/analyze.py` | Capa fina sobre el núcleo (argparse, `input()`, códigos de salida). Sin lógica de negocio. Se ejecuta sin instalar el paquete (añade `packages/incident-analyzer` a `sys.path` si no está instalado) | Procesador de incidentes, Fase 1 |
@@ -29,7 +29,13 @@ Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `p
 
 ## Estado real en `main` (verificado, no asumido)
 
-`origin/main` **ya tiene mergeados** Hito 2 (PR #1, `feature/domain-models`) e Hito 3 (PRs #2 y #3, `feature/talent-pipeline-tracker`) — confirmado con `git log main..origin/main` y `git merge-base --is-ancestor`. Un agente que trabaje sobre `main` ve el árbol completo: `src/`, `uis/website/`, `uis/talent-pipeline-tracker/`.
+Verificado el 2026-09-28 (`git log origin/main`, último merge `e3e7de2`). `origin/main` tiene mergeados:
+
+- Hito 2 (PR #1, `feature/domain-models`) e Hito 3 (PRs #2 y #3, `feature/talent-pipeline-tracker`).
+- Memory bank, `AGENTS.md`, `.agents/` y scaffold de `uis/backoffice` (PR #4) y `docs/ARCHITECTURE_PROPOSAL.md` (PR #5), ambos desde `feature/agent-memory-bank`.
+- Procesador de incidentes, Fases 1–3 (PR #6), y el `README.md` raíz con el briefing + fixture sintético de aceptación (PR #7), desde `feature/incident-analyzer`.
+
+Un agente que trabaje sobre `main` (tras `git fetch`) ve el árbol completo: `src/`, `uis/website/`, `uis/talent-pipeline-tracker/`, `uis/backoffice/`, `packages/incident-analyzer/`, `scripts/analyze.py`, `services/api/`.
 
 ## Decisiones de arquitectura registradas
 
@@ -51,7 +57,7 @@ Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `p
 
 **Regla derivada:** `/services` se crea únicamente cuando un hito futuro defina un backend propio con contrato explícito — nunca por anticipación ni porque la plantilla lo mencione.
 
-**Nota (2026-09-20):** existe una propuesta de arquitectura para ese backend en `docs/ARCHITECTURE_PROPOSAL.md` (un servicio FastAPI en `services/api/`, monolito modular por dominios). Es una **propuesta pendiente de aprobación del CTO**, no una decisión registrada: esta sección se actualizará con las decisiones concretas solo cuando se aprueben y se cree el servicio. Hasta entonces, la decisión anterior se mantiene tal cual. Ver `progress.md`, entrada 2026-09-20.
+**Nota (2026-09-20, histórica — la decisión quedó superada el 2026-09-23, ver arriba):** existe una propuesta de arquitectura para ese backend en `docs/ARCHITECTURE_PROPOSAL.md` (un servicio FastAPI en `services/api/`, monolito modular por dominios). Es una **propuesta pendiente de aprobación del CTO**, no una decisión registrada: esta sección se actualizará con las decisiones concretas solo cuando se aprueben y se cree el servicio. Hasta entonces, la decisión anterior se mantiene tal cual. Ver `progress.md`, entrada 2026-09-20.
 
 ### Procesador de incidentes: lógica de análisis única en `packages/incident-analyzer/`
 
@@ -100,8 +106,10 @@ Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `p
 
 ## Skills y agentes en este repo
 
-- `skills/data-analysis/` — limpieza pandas + referencia de métricas (ya existente, sin cambios).
-- `.agents/skills/memory-bank-sync/` — nueva, ver `AGENTS.md` y la propia `SKILL.md`.
+- `skills/data-analysis/` — limpieza pandas + referencia de métricas (heredada de la plantilla).
+- `skills/_template/`, `skills/research/`, `skills/code-review/` — solo estructura de la plantilla (`.gitkeep`/`SKILL.md` de ejemplo), sin contenido propio.
+- `agents/` — solo `_template/` y `tools/` de la plantilla; no hay agentes propios.
+- `.agents/skills/memory-bank-sync/` — añadida el 2026-09-14 (PR #4), ver `AGENTS.md` y la propia `SKILL.md`.
 
 ## Cómo verificar este documento
 
