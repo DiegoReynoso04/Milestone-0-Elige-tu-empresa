@@ -11,13 +11,23 @@ Un único objetivo: dejar `memory-bank/` reflejando con exactitud el estado real
 
 ## Cuándo se ejecuta
 
-Al terminar cualquier tarea que cambie código, documentación o una decisión de arquitectura en este repositorio, **antes** del commit/PR final. Es el último paso del flujo de entrega descrito en `AGENTS.md` (§5).
+Al terminar cualquier tarea que cambie código, documentación o una decisión de arquitectura en este repositorio — **se vaya a comitear o no** (una sesión que modifica archivos y termina sin commit también deja su entrada). Si hay commit, se ejecuta **antes** del commit/PR: es el paso 4 del flujo de `AGENTS.md` (§4).
+
+**No se ejecuta** en tareas de solo lectura (preguntas, revisiones, exploración) que no modifican archivos del repositorio.
+
+Qué archivo se toca, de un vistazo:
+
+| Archivo | Cuándo |
+|---|---|
+| `progress.md` | **Siempre** que la tarea modifique archivos del repo. Si ya hay una entrada de hoy sobre el mismo trabajo, se amplía esa en vez de crear otra. |
+| `techContext.md` | Solo si cambió algo técnico (ver paso 3). |
+| `projectbrief.md` | Solo si cambió algo de negocio (ver paso 4). Casi nunca. |
 
 ## Inputs
 
 - `git status --short` y `git diff --stat` de la rama de trabajo frente a su base — la lista real de archivos tocados, no una suposición.
 - El contenido actual de `memory-bank/progress.md`, `memory-bank/techContext.md` y `memory-bank/projectbrief.md` (para saber qué corregir, no solo qué añadir).
-- El contexto de negocio disponible: `contexts/CONTEXT.md` si existe en el checkout local, o `memory-bank/projectbrief.md` si no (ver `.agents/rules/nexova-context.md`).
+- El contexto de negocio disponible: `contexts/CONTEXT.md` si existe en el checkout local, o su copia versionada en el `README.md` raíz, más `memory-bank/projectbrief.md` (ver `.agents/rules/nexova-context.md`).
 - La fecha actual (`AAAA-MM-DD`), para fechar la entrada nueva.
 
 ## Procedimiento
