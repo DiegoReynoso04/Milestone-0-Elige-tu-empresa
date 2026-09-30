@@ -4,9 +4,15 @@ Estado vivo del proyecto. Cada entrada nueva se añade **arriba**, con fecha, y 
 
 ---
 
+## 2026-09-30 — Repositorio renombrado a `nexova-platform` y memory-bank tras el merge de AUTH-01
+
+**Estado: hecho** (solo documental, sin impacto técnico en el código). El repositorio de GitHub pasa de `Milestone-0-Elige-tu-empresa` a `nexova-platform` (detalle en `techContext.md`, "Estado real en `main`"); ningún archivo versionado citaba el nombre antiguo. Se actualizan las menciones de AUTH-01 de "pendiente de merge" a integrado con el PR #10. Rama `chore/memory-bank-auth-merged`, creada desde `main` en `09b86f1`.
+
+---
+
 ## 2026-09-30 — AUTH-01: autenticación JWT y protección de rutas (`services/api`)
 
-**Estado: hecho — validado por el tech lead (pruebas en `/docs` y desde el origen del backoffice) y commiteado en la rama `feature/auth-api`** (creada desde `api-con-almacenamiento-ligero` en `9988355`, mismo árbol que el merge del PR #9 en `main`). PR abierto contra `main`, pendiente de merge. El frontend queda fuera de alcance por el propio ticket (se actualizará para enviar el token en una fase posterior).
+**Estado: hecho — validado por el tech lead (pruebas en `/docs` y desde el origen del backoffice) y commiteado en la rama `feature/auth-api`** (creada desde `api-con-almacenamiento-ligero` en `9988355`, mismo árbol que el merge del PR #9 en `main`). Integrado en `main` con el PR #10 (mergeado el 2026-09-30 21:50 UTC, merge `09b86f1`). El frontend queda fuera de alcance por el propio ticket (se actualizará para enviar el token en una fase posterior).
 
 Contexto: ticket AUTH-01 (`docs/auth-api.md`): la CTO exige que ninguna ruta que modifique o exponga datos sensibles sea accesible sin sesión válida. Decisiones D-AUTH-1…13 en `services/api/SPECS.md` Parte C (§15–§22), fijadas por el tech lead el 2026-09-30.
 
@@ -23,7 +29,7 @@ Contexto: ticket AUTH-01 (`docs/auth-api.md`): la CTO exige que ninguna ruta que
 - Incidencia durante la validación manual: un `.env` con rutas Windows con `\` no lo interpretó `uv`, y la API usó `services/api/data/` (se añadió un proveedor de prueba y se creó `data/auth.json`); ambos se revirtieron y `.env.example` documenta usar `/` en rutas.
 
 **Pendiente:**
-- ~~Revisión del tech lead, commit y PR contra `main`~~ — hecho; falta el merge.
+- ~~Revisión del tech lead, commit, PR contra `main` y merge~~ — hecho (PR #10).
 - Para ejecutar los tests con uv, desde `services/api`: `uv run --no-sync python -m unittest discover -s tests -t .` (no hay pytest: D-API-3). Sin `--no-sync`, `uv run --extra dev` sincroniza el `.venv` y desinstala el núcleo `incident-analyzer` instalado con pip (se reinstala con `pip install --no-deps -e packages/incident-analyzer`); el README de `services/api` aún dice que `uv run` lo conserva.
 - CORS no incluye `PUT` (el test de CORS de la Parte A lo rechaza): necesario cuando el backoffice llame a `PUT /users/{id}` o `PUT /profiles/me`.
 - El backoffice (`/suppliers`, `/incidents`) responde 401 hasta que envíe el token (esperado por el ticket).
@@ -245,4 +251,4 @@ Empresa elegida: **Nexova**. Justificación en `contexts/COMPANY-CHOICE.md` (loc
 - **Procesador de incidentes:** Fases 1, 2 y 3 (`/incidents` en `uis/backoffice`) hechas e integradas en `main` (PR #6). Existe un fixture sintético de aceptación que reproduce las cifras del contexto (entrada 2026-09-27, PR #7). Pendientes: el test de aceptación con el CSV real (las cifras 100/96/4 no están verificadas con datos reales) y la Fase 4 (integración).
 - `uis/backoffice` es un punto de entrada — tiene `/incidents` y `/suppliers`; el resto de capacidades (portal de RRHH, ventas, dirección ejecutiva) requieren su propio contexto de hito antes de implementarse.
 - **Directorio de proveedores:** hecho e integrado en `main` con el PR #9 (entrada 2026-09-29). Migración futura de TinyDB a Postgres cuando exista el ORM (decisión del tech lead) — `User`/`Profile` de AUTH-01 **no** migran: se quedan en TinyDB y Postgres solo guardará `user_uuid`.
-- **AUTH-01:** hecho y commiteado en `feature/auth-api`, PR abierto contra `main` (entrada 2026-09-30). Siguiente fase: que el backoffice envíe el token (y añadir `PUT` a CORS si usa las rutas `PUT`).
+- **AUTH-01:** hecho e integrado en `main` con el PR #10 (entrada 2026-09-30). Siguiente fase: que el backoffice envíe el token (y añadir `PUT` a CORS si usa las rutas `PUT`).
