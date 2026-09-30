@@ -26,18 +26,19 @@ Una responsabilidad por carpeta de primer nivel: `uis/` (frontends), `services/`
 | Incident analyzer (API) | `services/api/` | **FastAPI 0.141.1 + Starlette 1.7.0 + pydantic 2.13.5 + python-multipart 0.0.32 + uvicorn 0.53.0**; tests con `unittest` + `TestClient` (httpx 0.28.1), sin pytest. Versiones instaladas el 2026-09-23 en `services/api/.venv` con Python 3.14.6; `pyproject.toml` las acota con rangos (ver decisión abajo). Desde el 2026-09-29 hay `uv.lock` versionado (ver decisión del directorio de proveedores). Contrato en su `SPECS.md` (Parte A) — no duplicado aquí | Procesador de incidentes, Fase 2 (2026-09-23) |
 | Directorio de proveedores (API) | `services/api/` → `/suppliers` | Misma app FastAPI + **TinyDB 4.9.0** (`tinydb>=4.9,<4.10`, autorizada) + Pydantic. Archivos con los nombres del brief dentro de `app/`: `models.py`, `database.py`, `routes/suppliers.py`, `seed.py` (`uv run seed`, entry point `[project.scripts]`). Contrato en `SPECS.md` Parte B — no duplicado aquí | Directorio de proveedores (2026-09-29) |
 | Directorio de proveedores (UI) | `uis/backoffice/` → ruta `/suppliers` | Mismo stack y capas que `/incidents`, **sin dependencias nuevas**. Reglas en `uis/backoffice/CLAUDE.md` — no duplicadas aquí | Directorio de proveedores (2026-09-29) |
-| Autenticación AUTH-01 (API) | `services/api/` → `/auth`, `/users`, `/profiles` | Misma app FastAPI + **libpass 1.9.3 / bcrypt 5.0.0** (`libpass[bcrypt]>=1.9.3,<1.10`) + **python-jose 3.5.0** (`python-jose[cryptography]>=3.5,<3.6`, backend cryptography 50.0.2), ambas autorizadas por el ticket; `User`/`Profile` en TinyDB. Código en `app/auth/` + `app/routes/{auth,users,profiles}.py`; comando `uv run create-admin`. Contrato en `SPECS.md` Parte C — no duplicado aquí | AUTH-01 (2026-09-30, rama `feature/auth-api`, PR contra `main` pendiente de merge) |
+| Autenticación AUTH-01 (API) | `services/api/` → `/auth`, `/users`, `/profiles` | Misma app FastAPI + **libpass 1.9.3 / bcrypt 5.0.0** (`libpass[bcrypt]>=1.9.3,<1.10`) + **python-jose 3.5.0** (`python-jose[cryptography]>=3.5,<3.6`, backend cryptography 50.0.2), ambas autorizadas por el ticket; `User`/`Profile` en TinyDB. Código en `app/auth/` + `app/routes/{auth,users,profiles}.py`; comando `uv run create-admin`. Contrato en `SPECS.md` Parte C — no duplicado aquí | AUTH-01 (2026-09-30, rama `feature/auth-api`, PR #10 mergeado) |
 
 Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `package.json`/`node_modules` — no hay workspaces de monorepo configurados en la raíz (existe metadata en `packages/shared/package.json`, pero no hay runner de workspace en raíz).
 
 ## Estado real en `main` (verificado, no asumido)
 
-Verificado el 2026-09-28 (`git log origin/main`, último merge `e3e7de2`). `origin/main` tiene mergeados:
+Verificado el 2026-09-30 (`git log origin/main`, último merge `09b86f1`, PR #10). `origin/main` tiene mergeados:
 
 - Hito 2 (PR #1, `feature/domain-models`) e Hito 3 (PRs #2 y #3, `feature/talent-pipeline-tracker`).
 - Memory bank, `AGENTS.md`, `.agents/` y scaffold de `uis/backoffice` (PR #4) y `docs/ARCHITECTURE_PROPOSAL.md` (PR #5), ambos desde `feature/agent-memory-bank`.
 - Procesador de incidentes, Fases 1–3 (PR #6), y el `README.md` raíz con el briefing + fixture sintético de aceptación (PR #7), desde `feature/incident-analyzer`.
-- Actualización 2026-09-30 (`git fetch`): también la sincronización del memory-bank (PR #8, `chore/memory-bank-sync`) y el directorio de proveedores (PR #9, `api-con-almacenamiento-ligero`; merge `f4a6137`). AUTH-01 todavía no está en `main`.
+- Actualización 2026-09-30 (`git fetch`): también la sincronización del memory-bank (PR #8, `chore/memory-bank-sync`) y el directorio de proveedores (PR #9, `api-con-almacenamiento-ligero`; merge `f4a6137`) y AUTH-01 (PR #10, `feature/auth-api`; merge `09b86f1`, 2026-09-30).
+- **Repositorio renombrado (2026-09-30):** `DiegoReynoso04/Milestone-0-Elige-tu-empresa` → `DiegoReynoso04/nexova-platform` (GitHub lo muestra como `Nexova-Platform`; el nombre no distingue mayúsculas y las URLs antiguas redirigen). El remoto `origin` local ya apunta a `https://github.com/DiegoReynoso04/nexova-platform.git`. La carpeta local puede seguir llamándose `Milestone-0-Elige-tu-empresa`: no afecta a nada.
 
 Un agente que trabaje sobre `main` (tras `git fetch`) ve el árbol completo: `src/`, `uis/website/`, `uis/talent-pipeline-tracker/`, `uis/backoffice/`, `packages/incident-analyzer/`, `scripts/analyze.py`, `services/api/`.
 
