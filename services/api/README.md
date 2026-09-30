@@ -120,9 +120,9 @@ cd services/api
 uv run seed
 ```
 
-`uv run` usa el `.venv` de `services/api` (el mismo del flujo con pip) y lo sincroniza con `pyproject.toml`/`uv.lock` sin eliminar paquetes extra, así que el núcleo `incident-analyzer` instalado con pip se conserva. El seeder no importa el núcleo, por lo que `uv run seed` también funciona en un clon limpio con solo uv instalado.
+`uv run` usa el `.venv` de `services/api` (el mismo del flujo con pip) y, antes de ejecutar, lo sincroniza con `pyproject.toml`/`uv.lock`. Esa sincronización **no siempre conserva** el núcleo `incident-analyzer`, que se instala aparte con pip: `uv run seed` y `uv run --env-file .env uvicorn …` lo han conservado, pero `uv run --extra dev …` lo desinstaló (comprobado el 2026-09-30), y a partir de ahí la API de incidentes y los tests fallan al importar `incident_analyzer`. Con el venv ya instalado, `uv run --no-sync …` lo usa tal cual, sin sincronizar. Si el núcleo desaparece, se reinstala desde la raíz con `services\api\.venv\Scripts\python -m pip install --no-deps -e packages/incident-analyzer` (Linux/macOS: `services/api/.venv/bin/python …`). El seeder no importa el núcleo, por lo que `uv run seed` también funciona en un clon limpio con solo uv instalado.
 
-> **Nota sobre `uv sync`:** a diferencia de `uv run`, `uv sync` sincroniza el entorno de forma **exacta** con `uv.lock` y elimina los paquetes que no declara `pyproject.toml`; en este `.venv` eso incluye el núcleo `incident-analyzer` (instalado aparte, ver Instalación) y el extra `dev` si no se pide, con lo que la API de incidentes y los tests dejarían de funcionar hasta reinstalarlos. Para cargar los proveedores, la operación prevista es `uv run seed`.
+> **Nota sobre `uv sync`:** `uv sync` sincroniza el entorno de forma **exacta** con `uv.lock` y elimina los paquetes que no declara `pyproject.toml`; en este `.venv` eso incluye el núcleo `incident-analyzer` (instalado aparte, ver Instalación) y el extra `dev` si no se pide, con lo que la API de incidentes y los tests dejarían de funcionar hasta reinstalarlos. Para cargar los proveedores, la operación prevista es `uv run seed`.
 
 Sin uv, con el venv del servicio ya instalado: `python -m app.seed` (desde `services/api`). Ejecutarlo con la API parada o sin peticiones de escritura en curso (TinyDB no coordina procesos distintos).
 
@@ -168,6 +168,14 @@ services/api/.venv/bin/python -m unittest discover -s services/api/tests -t serv
 ```
 
 Equivalente con el venv activado: `python -m unittest discover -s services/api/tests -t services/api`.
+
+Con uv, desde `services/api` y con el venv ya instalado:
+
+```bash
+uv run --no-sync python -m unittest discover -s tests -t .
+```
+
+**Sin `--no-sync`** (por ejemplo `uv run --extra dev python -m unittest …`), uv sincroniza el venv y puede desinstalar el núcleo `incident-analyzer` (ver [Seeder](#seeder)). La suite usa `unittest` y **no hay pytest** (D-API-3 en `SPECS.md`): `uv run pytest` responde `program not found`.
 
 La suite del núcleo (Fase 1) no necesita el venv: `python -m unittest discover -s packages/incident-analyzer/tests -t packages/incident-analyzer` con cualquier Python ≥ 3.11.
 
