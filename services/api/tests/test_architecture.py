@@ -27,9 +27,14 @@ CORE_LITERALS = {
 }
 FORBIDDEN_IMPORTS = {"csv", "re", "statistics", "fractions"}
 FORBIDDEN_NAMES = {"ROUND_HALF_UP", "ROUND_HALF_EVEN", "quantize", "round", "parse_score", "print"}
-# Único módulo que puede imprimir: el seeder de proveedores es un script de consola
-# (confirma cuántos registros insertó) y no maneja datos de incidentes.
-PRINT_ALLOWED = {"seed.py"}
+# Únicos módulos que pueden imprimir: scripts de consola que no manejan datos de
+# incidentes. El seeder confirma cuántos proveedores insertó; `create-admin`
+# confirma el usuario creado (nunca imprime la contraseña).
+PRINT_ALLOWED = {"seed.py", "auth/create_admin.py"}
+# "@" es la regla de email del núcleo de incidentes y no debe reimplementarse
+# en la API. Única excepción: la validación del email de login de AUTH-01, que
+# no tiene relación con el CSV de incidentes.
+CORE_LITERAL_EXCEPTIONS = {"auth/models.py": {"@"}}
 
 
 def python_files(directory: Path) -> list[Path]:
@@ -46,10 +51,11 @@ class ApiDoesNotDuplicateCoreTests(unittest.TestCase):
 
     def test_no_core_literals_in_api(self) -> None:
         for path in python_files(APP_DIR):
+            forbidden = CORE_LITERALS - CORE_LITERAL_EXCEPTIONS.get(path.relative_to(APP_DIR).as_posix(), set())
             for node in ast.walk(parse(path)):
                 if isinstance(node, ast.Constant) and isinstance(node.value, str):
                     with self.subTest(file=path.name, literal=node.value):
-                        self.assertNotIn(node.value, CORE_LITERALS)
+                        self.assertNotIn(node.value, forbidden)
                         self.assertNotIn("AGT-", node.value)
                         self.assertNotIn(r"\d", node.value)
 

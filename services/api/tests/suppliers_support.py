@@ -19,7 +19,7 @@ from app.database import SupplierRepository
 from app.main import create_app
 from app.seed import run_seed
 
-from .support import REPO_ROOT
+from .support import REPO_ROOT, authorize, with_test_auth
 
 CONTEXT_DOC = REPO_ROOT / "docs" / "ligthweight-storage-api.md"
 SUPPLIERS_URL = "/suppliers"
@@ -71,9 +71,13 @@ class SupplierTestCase(unittest.TestCase):
         self.client = self.make_client()
 
     def make_client(self) -> TestClient:
-        app = create_app(Settings(suppliers_db_path=self.db_path))
+        settings = with_test_auth(Settings(suppliers_db_path=self.db_path), Path(self._tmp.name) / "auth.json")
+        app = create_app(settings)
         app.state.supplier_repository = SupplierRepository(self.db_path, clock=self.clock)
-        return TestClient(app)
+        client = TestClient(app)
+        # /suppliers exige JWT (AUTH-01): estos tests trabajan como usuario autenticado.
+        authorize(client)
+        return client
 
     def seed(self) -> None:
         run_seed(SupplierRepository(self.db_path, clock=self.clock))

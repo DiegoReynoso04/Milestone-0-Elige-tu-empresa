@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nexova-incident-api"
 version = "0.1.0"
-description = "Nexova — API HTTP (FastAPI): análisis de incidentes de soporte y directorio de proveedores (TinyDB)"
+description = "Nexova — API HTTP (FastAPI): análisis de incidentes de soporte, directorio de proveedores (TinyDB) y autenticación JWT"
 readme = "README.md"
 requires-python = ">=3.11"
 # Rangos acotados a las versiones probadas. Versiones exactas en uv.lock
@@ -18,6 +18,10 @@ requires-python = ">=3.11"
 #   pip install -e packages/incident-analyzer -e "services/api[dev]"
 dependencies = [
     "fastapi>=0.141,<0.142",
+    # AUTH-01 (autorizadas por el ticket): hash bcrypt con libpass (fork
+    # mantenido de passlib; se importa como `passlib`) y firma JWT con python-jose.
+    "libpass[bcrypt]>=1.9.3,<1.10",
+    "python-jose[cryptography]>=3.5,<3.6",
     "python-multipart>=0.0.32,<0.1",
     "tinydb>=4.9,<4.10",
     "uvicorn>=0.53,<0.54",
@@ -26,10 +30,12 @@ dependencies = [
 [project.scripts]
 # `uv run seed` (desde services/api): carga los proveedores iniciales en TinyDB.
 seed = "app.seed:main"
+# `uv run create-admin` (desde services/api): crea el primer admin (contraseña interactiva).
+create-admin = "app.auth.create_admin:main"
 
 [project.optional-dependencies]
 # httpx lo necesita fastapi.testclient.TestClient. Tests con unittest (sin pytest).
 dev = ["httpx>=0.28,<0.29"]
 
 [tool.setuptools]
-packages = ["app", "app.core", "app.modules", "app.modules.incidents", "app.routes"]
+packages = ["app", "app.auth", "app.core", "app.modules", "app.modules.incidents", "app.routes"]

@@ -5,6 +5,10 @@ dist/
 .DS_Store
 .env
 .env.local
+# Cualquier variante (.env.production, .env.dev...) puede contener secretos
+# como JWT_SECRET_KEY; solo se versionan las plantillas `.env.example`.
+.env.*
+!.env.example
 contexts/
 
 # Python
@@ -17,5 +21,6 @@ __pycache__/
 data/raw/incidents/
 results.csv
 
-# Base TinyDB local del directorio de proveedores (services/api)
+# Bases TinyDB locales de services/api: proveedores (suppliers.json) y
+# usuarios/perfiles con hashes de contraseña (auth.json)
 services/api/data/

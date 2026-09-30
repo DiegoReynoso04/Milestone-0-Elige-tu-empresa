@@ -2,13 +2,21 @@
 
 import contextlib
 import csv
+import dataclasses
 import logging
+import secrets
+import tempfile
 from collections.abc import Iterator
+from functools import cache
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from httpx import Response
 
+from app.auth.models import ProfileFields, UserInDB, UserRole
+from app.auth.security import create_access_token, hash_password
+from app.auth.service import UserService
 from app.core.config import Settings
 from app.main import create_app
 
@@ -24,8 +32,56 @@ EXPORT_URL = "/api/incidents/results/export"
 HEADER = "ticket_id,date,client_company,category,description,agent_id,status,customer_email,satisfaction_score\r\n"
 
 
-def make_client(settings: Settings | None = None) -> TestClient:
-    return TestClient(create_app(settings if settings is not None else Settings()))
+# AUTH-01: clave generada al importar (nunca una clave fija en el repositorio).
+TEST_JWT_SECRET = secrets.token_urlsafe(48)
+TEST_TOKEN_MINUTES = 15
+
+
+def with_test_auth(settings: Settings, auth_db_path: Path) -> Settings:
+    """`settings` + configuración JWT de test y una base de usuarios temporal."""
+    return dataclasses.replace(
+        settings,
+        auth_db_path=auth_db_path,
+        jwt_secret_key=TEST_JWT_SECRET,
+        access_token_expire_minutes=TEST_TOKEN_MINUTES,
+    )
+
+
+@cache
+def _fixture_password_hash() -> str:
+    # Un único hash bcrypt por proceso: los usuarios de fixture no necesitan
+    # contraseña utilizable y así la suite no paga un hash por cliente.
+    return hash_password(secrets.token_urlsafe(16))
+
+
+def authorize(client: TestClient, role: UserRole = UserRole.USER) -> UserInDB:
+    """Crea un usuario de fixture en la base de la app y fija su JWT en el cliente."""
+    service = client.app.state.user_service  # type: ignore[attr-defined]
+    assert isinstance(service, UserService)
+    user, _ = service.repository.create_user(
+        email=f"fixture-{uuid4().hex}@example.invalid",
+        hashed_password=_fixture_password_hash(),
+        role=role,
+        profile=ProfileFields(),
+    )
+    settings = client.app.state.settings  # type: ignore[attr-defined]
+    client.headers["Authorization"] = f"Bearer {create_access_token(settings, str(user.id))}"
+    return user
+
+
+def make_client(settings: Settings | None = None, *, authenticated: bool = True) -> TestClient:
+    """Cliente de la app con una base de usuarios temporal y, por defecto, un JWT válido.
+
+    Las rutas de incidentes y proveedores exigen token (AUTH-01): los tests que
+    no tratan de autenticación trabajan como un usuario autenticado.
+    """
+    auth_dir = tempfile.TemporaryDirectory()
+    base = settings if settings is not None else Settings()
+    client = TestClient(create_app(with_test_auth(base, Path(auth_dir.name) / "auth.json")))
+    client.auth_dir = auth_dir  # type: ignore[attr-defined]  # vive lo mismo que el cliente
+    if authenticated:
+        authorize(client)
+    return client
 
 
 def post_csv(client: TestClient, content: bytes, filename: str = "incidents.csv") -> Response:

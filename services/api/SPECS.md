@@ -2,10 +2,11 @@
 
 Contrato HTTP de `services/api`. Si el código y este documento discrepan, el documento se actualiza en el mismo cambio que el código.
 
-Una sola aplicación FastAPI (`app/main.py`) con dos dominios:
+Una sola aplicación FastAPI (`app/main.py`) con tres dominios:
 
 - **Parte A (§1–§7): analizador de incidentes** — `/api/incidents/*`.
 - **Parte B (§8–§14): directorio de proveedores** — `/suppliers*`, persistido en TinyDB.
+- **Parte C (§15–§22): autenticación (AUTH-01)** — `/auth`, `/users`, `/profiles`; JWT obligatorio en las rutas de las Partes A y B.
 
 Este documento distingue **dos orígenes** de requisitos. Mezclarlos sería atribuir al cliente decisiones que no tomó.
 
@@ -43,7 +44,7 @@ El documento de contexto de Nexova **no define ninguna API HTTP**: describe un s
 | D-API-7 | CORS con orígenes explícitos (`CORS_ALLOWED_ORIGINS`, por defecto `http://localhost:3000`), sin credenciales, nunca `*`. Métodos: `GET`/`POST` (y, desde el directorio de proveedores, `PATCH`/`DELETE`: ver §13) |
 | D-API-8 | `GET /health` fuera de `/api` |
 | D-API-9 | El núcleo expone `analyze_binary_stream(stream)`; la API le pasa `UploadFile.file` |
-| D-API-10 | **Sin autenticación.** Servicio de uso **local**; no apto para exponerse públicamente con datos reales |
+| D-API-10 | ~~**Sin autenticación.**~~ **Superada por AUTH-01 (Parte C):** las dos rutas de incidentes exigen un JWT válido (401 sin él). Sigue siendo un servicio pensado para uso local (un worker, estado en memoria) |
 
 ---
 
@@ -151,8 +152,13 @@ Formato único: `{"detail": ..., "code": "..."}`.
 | HTTP | `code` | Cuándo | `detail` |
 |---|---|---|---|
 | 400 | `invalid_csv` | archivo vacío, sin cabecera, faltan columnas, no es UTF-8, CSV ilegible | mensaje del núcleo (solo nombres de columna o números de fila) |
+| 401 | `not_authenticated` | ruta protegida sin token, con token mal formado, firma inválida, expirado o de un usuario inexistente (Parte C). Cabecera `WWW-Authenticate: Bearer` | `could not validate credentials` |
+| 401 | `invalid_credentials` | `POST /auth/login` con email o contraseña incorrectos (Parte C) | `incorrect email or password` |
+| 403 | `forbidden` | autenticado sin permiso: otro usuario sin ser admin, cambio de `role` sin ser admin, `GET /users` sin ser admin (Parte C) | texto fijo |
 | 404 | `no_analysis` | export sin análisis previo | `no analysis available yet` |
 | 404 | `supplier_not_found` | `/suppliers/{id}` con un id que no existe (Parte B) | `supplier not found` |
+| 404 | `user_not_found` / `profile_not_found` | usuario o perfil inexistente, solo visible para quien tiene permiso (Parte C) | `user not found` / `profile not found` |
+| 409 | `email_already_registered` | alta o cambio a un email ya registrado (Parte C) | `email already registered` (no repite el email) |
 | 404 | `not_found` | ruta inexistente | `Not Found` |
 | 405 | `method_not_allowed` | método no soportado; incluye la cabecera `Allow` con los métodos permitidos | `Method Not Allowed` |
 | 413 | `file_too_large` | **body HTTP** mayor que `MAX_UPLOAD_BYTES` (por `Content-Length` o contando bytes en streaming si no hay `Content-Length`) | `request body exceeds the <N> bytes limit` |
@@ -188,13 +194,16 @@ Formato único: `{"detail": ..., "code": "..."}`.
 
 ## 7. Configuración
 
-Variables de entorno del proceso (la API no carga archivos `.env`; ver `.env.example`):
+Variables de entorno del proceso (la API no carga archivos `.env` por sí sola; se pasan con `uv run --env-file .env …`, ver `.env.example`):
 
 | Variable | Por defecto | Validación |
 |---|---|---|
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | lista separada por comas; `*` se rechaza al arrancar |
 | `MAX_UPLOAD_BYTES` | `1048576` | entero > 0; se valida al arrancar. Límite del **body HTTP completo**, no del CSV (§3.1) |
 | `SUPPLIERS_DB_PATH` | `services/api/data/suppliers.json` | ruta del archivo TinyDB del directorio de proveedores (Parte B). La usan la API y el seeder |
+| `JWT_SECRET_KEY` | **ninguno (obligatoria)** | clave HS256, ≥ 32 caracteres; sin ella la API no arranca (Parte C) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | **ninguno (obligatoria)** | entero > 0; sin ella la API no arranca (Parte C) |
+| `AUTH_DB_PATH` | `services/api/data/auth.json` | archivo TinyDB de `User` y `Profile` (Parte C). La usan la API y `create-admin` |
 
 ---
 
@@ -278,3 +287,118 @@ Errores con el formato común `{detail, code}` (§4); el 422 devuelve la lista `
 `cd services/api && uv run seed` (entry point `seed = "app.seed:main"` en `[project.scripts]`). Sin uv, con el venv del servicio: `python -m app.seed` o el ejecutable `seed` del venv.
 
 Salida en consola: ruta de la base, **proveedores insertados**, ya existentes (omitidos) y total. Una segunda ejecución inserta 0.
+
+---
+
+# Parte C — Autenticación y protección de rutas (AUTH-01)
+
+## 15. Requisitos heredados (ticket AUTH-01)
+
+Fuente: [`docs/auth-api.md`](../../docs/auth-api.md) (ticket del tech lead; la CTO exige que ninguna ruta que modifique o exponga datos sensibles sea accesible sin sesión válida).
+
+| Requisito | Dónde se cumple |
+|---|---|
+| `User` solo con credenciales (`id`, `email`, `hashed_password`, `is_active`, `role`, `created_at`) | `app/auth/models.py`, `app/auth/repository.py` |
+| `Profile` uno a uno con `User` (`id`, `user_id`, `name`, `phone`, `address`) | ídem; se crea con el usuario y se borra con él |
+| `role` ∈ `admin`/`manager`/`user` (`Enum`), por defecto `user` | `UserRole`; otro valor → 422 |
+| Capa de servicios: crear, obtener por id, obtener por email, actualizar, eliminar | `app/auth/service.py` (`UserService`) |
+| Contraseñas con `libpass[bcrypt]` (`from passlib.hash import bcrypt`), nunca en texto plano | `app/auth/security.py` |
+| JWT firmado con `python-jose`, con `sub` = id de `User` y `exp` configurable | `app/auth/security.py` |
+| `OAuth2PasswordBearer` + dependencia `get_current_user` (401 si algo falla) | `app/auth/dependencies.py` |
+| Rutas bajo `/auth`, `/users` y `/profiles` | `app/routes/{auth,users,profiles}.py` |
+| ≥ 5 rutas existentes protegidas | las 8 de las Partes A y B (§20) |
+| 401 sin autenticación válida, 403 con recurso ajeno | §21 |
+| `User`/`Profile` solo en TinyDB, también tras introducir Supabase/PostgreSQL | §17 |
+
+## 16. Decisiones de implementación (tech lead, 2026-09-30)
+
+| ID | Decisión |
+|---|---|
+| D-AUTH-1 | Dependencias nuevas autorizadas por el ticket: `libpass[bcrypt]>=1.9.3,<1.10` (instala `bcrypt` 5) y `python-jose[cryptography]>=3.5,<3.6` (el extra lo pide la especificación; instala `cryptography` como backend aunque HS256 no lo necesita). Sin `python-dotenv` ni `email-validator` |
+| D-AUTH-2 | `User.id` y `Profile.id` son **UUID v4** generados por el sistema y guardados como campo del documento (string). **No** se usa el `doc_id` entero de TinyDB (a diferencia de los proveedores, D-SUP-4): el id es estable, viaja en el JWT como `sub` y otros módulos lo guardarán como `user_uuid`. No afecta a ningún contrato existente: ningún dato de proveedores ni de incidentes referencia usuarios |
+| D-AUTH-3 | Login con `OAuth2PasswordRequestForm` (formulario `application/x-www-form-urlencoded`): el campo `username` es el **email**. Así funciona el botón *Authorize* de `/docs`. No hay variante JSON |
+| D-AUTH-4 | `JWT_SECRET_KEY` (≥ 32 caracteres) y `ACCESS_TOKEN_EXPIRE_MINUTES` **sin valor por defecto**: `create_app()` lanza `ConfigError` si faltan, así que la API no arranca. El seeder y `create-admin` no las necesitan |
+| D-AUTH-5 | Algoritmo `HS256`. Claims: `sub`, `iat`, `exp`. Al decodificar se exigen firma válida, algoritmo `HS256` (se rechaza `alg: none`), `sub` y `exp` no vencido |
+| D-AUTH-6 | Email normalizado (recortado y en minúsculas) y validado sin regex ni dependencias: una sola `@`, parte local y dominio no vacíos, dominio con punto interior y sin espacios. Máximo 254 caracteres |
+| D-AUTH-7 | Contraseña: mínimo 8 caracteres y **máximo 72 bytes UTF-8** (límite de bcrypt), validado antes del hash (422). No se trunca en silencio |
+| D-AUTH-8 | `POST /users` es público y **no acepta `role`**: `UserCreate` = `email`, `password`, `name`, `phone`, `address`; enviar `role` (con cualquier valor) → 422. El backend fija siempre `role=user`. Los roles los asigna un admin con `PUT /users/{id}` (valor fuera del `Enum` → 422); el primer admin se crea con `create-admin` |
+| D-AUTH-9 | Primer admin con el comando explícito `uv run create-admin` (patrón de `uv run seed`); contraseña interactiva y oculta (`getpass`), nunca por argumento |
+| D-AUTH-10 | TinyDB propio en `AUTH_DB_PATH` (por defecto `services/api/data/auth.json`, ignorado por git), tablas `users` y `profiles`. Mismo patrón que D-SUP-10 (lock + abrir/cerrar por operación, un worker) |
+| D-AUTH-11 | Las 8 rutas existentes se protegen a nivel de router (`include_router(..., dependencies=[Depends(get_current_user)])`): cualquier ruta nueva de esos routers queda protegida por defecto. Sin permisos por rol en ellas (basta un token válido) |
+| D-AUTH-12 | CORS añade solo la cabecera `Authorization` a `allow_headers`. **No** se añade `PUT` a los métodos (ver §22) |
+| D-AUTH-13 | `PUT /users/{id}` y `PUT /profiles/me` actualizan solo los campos enviados (semántica parcial). Cuerpo vacío → 200 sin cambios |
+
+## 17. Modelo y almacenamiento
+
+`User` (tabla `users`):
+
+| Campo | Tipo | Entrada | Notas |
+|---|---|---|---|
+| `id` | UUID (string) | nunca (422) | lo genera el sistema; es el `sub` del JWT y el futuro `user_uuid` |
+| `email` | string | `POST`/`PUT` | normalizado a minúsculas; único (409) |
+| `hashed_password` | string bcrypt (`$2b$12$…`) | nunca (422) | se envía `password` y se guarda solo el hash. **Nunca sale en una respuesta** |
+| `is_active` | bool | nunca (422) | `true` al crear; un usuario inactivo no puede hacer login ni usar su token |
+| `role` | `admin` \| `manager` \| `user` | solo `PUT` de un admin (D-AUTH-8, §21) | `user` en todo registro público |
+| `created_at` | datetime ISO 8601 UTC | nunca (422) | lo genera el sistema |
+
+`Profile` (tabla `profiles`): `id` (UUID), `user_id` (= `User.id`), `name`, `phone`, `address` (strings opcionales, recortados, máx. 200 caracteres). Se crea en la misma operación que el usuario (con los campos opcionales de `POST /users` o vacío) y se borra con él: nunca hay un perfil sin usuario.
+
+**User y Profile viven solo en TinyDB**, ahora y después de introducir Supabase/PostgreSQL: no existen ni se deben crear tablas de usuarios ni de perfiles en PostgreSQL. Las tablas PostgreSQL de otros módulos guardarán únicamente el `id` de TinyDB como `user_uuid`.
+
+## 18. Endpoints
+
+| Método y ruta | Auth | Body | Éxito | Errores |
+|---|---|---|---|---|
+| `POST /users` | pública | `{email, password, name?, phone?, address?}` (`role` → 422) | **201** + `UserRead` (`role=user`) | 409, 422 |
+| `GET /users` | admin | — | **200** + lista de `UserRead` | 401, 403 |
+| `GET /users/{id}` | propio o admin | — | **200** + `UserRead` | 401, 403, 404 (solo admin), 422 (id no UUID) |
+| `PUT /users/{id}` | propio o admin | `{email?, password?, role?}` | **200** + `UserRead` | 401, 403 (otro usuario o `role` sin ser admin), 404, 409, 422 |
+| `DELETE /users/{id}` | propio o admin | — | **204** (borra también el `Profile`) | 401, 403, 404 |
+| `POST /auth/login` | pública | formulario OAuth2 `username` (= email), `password` | **200** `{access_token, token_type: "bearer", expires_in}` | 401 `invalid_credentials`, 422 |
+| `GET /auth/me` | token | — | **200** `{id, email, role, is_active, created_at, profile}` | 401 |
+| `GET /profiles/me` | token | — | **200** `Profile` | 401 |
+| `PUT /profiles/me` | token | `{name?, phone?, address?}` (`user_id` → 422) | **200** `Profile` | 401, 422 |
+
+`UserRead` = `{id, email, role, is_active, created_at}`: ninguna respuesta contiene `password` ni `hashed_password`.
+
+## 19. JWT y `get_current_user`
+
+- Firma HS256 con `JWT_SECRET_KEY`; `exp` = emisión + `ACCESS_TOKEN_EXPIRE_MINUTES`.
+- `get_current_user` (en `app/auth/dependencies.py`): lee `Authorization: Bearer <token>` con `OAuth2PasswordBearer(tokenUrl="/auth/login")`, decodifica y valida (firma, algoritmo, `sub`, `exp`), busca el usuario por `sub` en TinyDB y lo devuelve. Cualquier fallo (sin cabecera, esquema distinto de `Bearer`, token mal formado, firma de otra clave, expirado, sin `sub`/`exp`, usuario borrado o inactivo) → **401** `not_authenticated` con `WWW-Authenticate: Bearer`.
+- Login fallido: mismo mensaje si el email no existe o la contraseña no coincide; si el email no existe se verifica igualmente contra un hash ficticio para no revelar qué emails están registrados por el tiempo de respuesta.
+- Los tokens son sin estado: cambiar la contraseña o el rol **no** invalida los tokens ya emitidos hasta que expiran (sí lo hace borrar el usuario).
+
+## 20. Rutas protegidas y públicas
+
+Protegidas (JWT obligatorio, cualquier rol): `POST /suppliers`, `GET /suppliers`, `GET /suppliers/{id}`, `PATCH /suppliers/{id}/rate`, `PATCH /suppliers/{id}/status`, `DELETE /suppliers/{id}`, `POST /api/incidents/analyze`, `GET /api/incidents/results/export`; además `GET /users`, `GET`/`PUT`/`DELETE /users/{id}`, `GET /auth/me`, `GET`/`PUT /profiles/me`.
+
+Públicas: `GET /health`, `GET /docs` (y `/openapi.json`, `/redoc`), `POST /auth/login`, `POST /users`.
+
+## 21. 401 frente a 403 y matriz de permisos
+
+- **401**: no hay autenticación válida (ver §19). Nunca se usa para un usuario autenticado sin permiso.
+- **403**: token válido, pero el recurso no es suyo o la acción exige admin. Un no-admin recibe 403 al pedir otro id **exista o no** (no se revela qué ids existen); un admin recibe 404 si no existe.
+
+| Acción | `user` / `manager` | `admin` | Sin token |
+|---|---|---|---|
+| `POST /users` (crea siempre `role=user`; `role` en el body → 422) | ✓ | ✓ | ✓ |
+| `GET /users` | 403 | ✓ | 401 |
+| `GET /users/{id}` propio | ✓ | ✓ | 401 |
+| `GET /users/{id}` ajeno | 403 | ✓ | 401 |
+| `PUT /users/{id}` propio: `email`, `password` | ✓ | ✓ | 401 |
+| `PUT /users/{id}` con `role` | 403 | ✓ | 401 |
+| `PUT /users/{id}` ajeno | 403 | ✓ | 401 |
+| `DELETE /users/{id}` propio | ✓ | ✓ | 401 |
+| `DELETE /users/{id}` ajeno | 403 | ✓ | 401 |
+| `GET /auth/me`, `GET`/`PUT /profiles/me` | ✓ (el suyo) | ✓ (el suyo) | 401 |
+| 8 rutas de proveedores e incidentes | ✓ | ✓ | 401 |
+
+`manager` tiene hoy los mismos permisos que `user`: el ticket no pide permisos distintos por rol.
+
+## 22. Pendiente / fuera de alcance (no bloquea AUTH-01)
+
+- **CORS:** `Authorization` ya está permitido en `allow_headers`. Los métodos CORS siguen siendo `GET`/`POST`/`PATCH`/`DELETE`: `PUT` se habilitará con la integración del frontend, no en AUTH-01. Cuando el backoffice llame a `PUT /users/{id}` o `PUT /profiles/me` desde el navegador habrá que añadir `PUT` (el test de CORS de la Parte A lo rechaza hoy a propósito).
+- **Frontend:** `/suppliers` e `/incidents` del backoffice responden 401 hasta que envíe el token (esperado según el ticket; fase posterior).
+- **Mejoras futuras de tokens (fuera de alcance):** refresh tokens, revocación/blacklist e invalidación de los tokens emitidos al cambiar la contraseña. Hoy un token sigue siendo válido hasta su `exp` aunque cambie la contraseña o el rol; no es un bloqueo para este ticket.
+- Sin bloqueo por intentos fallidos ni forma de desactivar usuarios por API (`is_active` solo se puede cambiar en la base).
+- Un admin puede quitarse su propio rol o borrarse aunque sea el último admin; se recupera con `uv run create-admin`.

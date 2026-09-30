@@ -26,6 +26,7 @@ Una responsabilidad por carpeta de primer nivel: `uis/` (frontends), `services/`
 | Incident analyzer (API) | `services/api/` | **FastAPI 0.141.1 + Starlette 1.7.0 + pydantic 2.13.5 + python-multipart 0.0.32 + uvicorn 0.53.0**; tests con `unittest` + `TestClient` (httpx 0.28.1), sin pytest. Versiones instaladas el 2026-09-23 en `services/api/.venv` con Python 3.14.6; `pyproject.toml` las acota con rangos (ver decisión abajo). Desde el 2026-09-29 hay `uv.lock` versionado (ver decisión del directorio de proveedores). Contrato en su `SPECS.md` (Parte A) — no duplicado aquí | Procesador de incidentes, Fase 2 (2026-09-23) |
 | Directorio de proveedores (API) | `services/api/` → `/suppliers` | Misma app FastAPI + **TinyDB 4.9.0** (`tinydb>=4.9,<4.10`, autorizada) + Pydantic. Archivos con los nombres del brief dentro de `app/`: `models.py`, `database.py`, `routes/suppliers.py`, `seed.py` (`uv run seed`, entry point `[project.scripts]`). Contrato en `SPECS.md` Parte B — no duplicado aquí | Directorio de proveedores (2026-09-29) |
 | Directorio de proveedores (UI) | `uis/backoffice/` → ruta `/suppliers` | Mismo stack y capas que `/incidents`, **sin dependencias nuevas**. Reglas en `uis/backoffice/CLAUDE.md` — no duplicadas aquí | Directorio de proveedores (2026-09-29) |
+| Autenticación AUTH-01 (API) | `services/api/` → `/auth`, `/users`, `/profiles` | Misma app FastAPI + **libpass 1.9.3 / bcrypt 5.0.0** (`libpass[bcrypt]>=1.9.3,<1.10`) + **python-jose 3.5.0** (`python-jose[cryptography]>=3.5,<3.6`, backend cryptography 50.0.2), ambas autorizadas por el ticket; `User`/`Profile` en TinyDB. Código en `app/auth/` + `app/routes/{auth,users,profiles}.py`; comando `uv run create-admin`. Contrato en `SPECS.md` Parte C — no duplicado aquí | AUTH-01 (2026-09-30, rama `feature/auth-api`, PR contra `main` pendiente de merge) |
 
 Ambas apps Next.js (`talent-pipeline-tracker`, `backoffice`) tienen su propio `package.json`/`node_modules` — no hay workspaces de monorepo configurados en la raíz (existe metadata en `packages/shared/package.json`, pero no hay runner de workspace en raíz).
 
@@ -36,6 +37,7 @@ Verificado el 2026-09-28 (`git log origin/main`, último merge `e3e7de2`). `orig
 - Hito 2 (PR #1, `feature/domain-models`) e Hito 3 (PRs #2 y #3, `feature/talent-pipeline-tracker`).
 - Memory bank, `AGENTS.md`, `.agents/` y scaffold de `uis/backoffice` (PR #4) y `docs/ARCHITECTURE_PROPOSAL.md` (PR #5), ambos desde `feature/agent-memory-bank`.
 - Procesador de incidentes, Fases 1–3 (PR #6), y el `README.md` raíz con el briefing + fixture sintético de aceptación (PR #7), desde `feature/incident-analyzer`.
+- Actualización 2026-09-30 (`git fetch`): también la sincronización del memory-bank (PR #8, `chore/memory-bank-sync`) y el directorio de proveedores (PR #9, `api-con-almacenamiento-ligero`; merge `f4a6137`). AUTH-01 todavía no está en `main`.
 
 Un agente que trabaje sobre `main` (tras `git fetch`) ve el árbol completo: `src/`, `uis/website/`, `uis/talent-pipeline-tracker/`, `uis/backoffice/`, `packages/incident-analyzer/`, `scripts/analyze.py`, `services/api/`.
 
@@ -87,7 +89,7 @@ Un agente que trabaje sobre `main` (tras `git fetch`) ve el árbol completo: `sr
 - **Errores** `{detail, code}`, conservando las cabeceras de la excepción (el 405 incluye `Allow`); el 422 elimina `input`/`ctx`/`url`; el 500 lo produce un middleware propio (no `exception_handler(Exception)`, que Starlette relanza y el servidor registraría con el mensaje) y solo registra el nombre de la clase.
 - **CORS** `CORS_ALLOWED_ORIGINS` (por defecto `http://localhost:3000`), solo `GET`/`POST`, sin credenciales, `*` rechazado al arrancar; expone `X-Analysis-Id` y `Content-Disposition`.
 - **Configuración** con un `dataclass` de la librería estándar (sin pydantic-settings ni python-dotenv): la API no carga `.env`.
-- **Sin autenticación**: solo uso local.
+- ~~**Sin autenticación**: solo uso local.~~ **Superado por AUTH-01 (2026-09-30):** ambas rutas exigen JWT; ver la decisión "Autenticación AUTH-01" abajo.
 - **Dependencias**: `pyproject.toml` propio con rangos acotados a las versiones probadas (sin lockfile hasta el 2026-09-29; desde entonces `uv.lock` versionado, ver la decisión del directorio de proveedores): `fastapi>=0.141,<0.142`, `python-multipart>=0.0.32,<0.1`, `uvicorn>=0.53,<0.54`; extra `dev` = `httpx>=0.28,<0.29`. Sin pytest, pydantic-settings ni python-dotenv.
 - **Núcleo local, no declarado como dependencia**: `nexova-incident-analyzer` no está en `dependencies` a propósito — el nombre está libre en PyPI y declararlo expondría a *dependency confusion*. Se instala siempre en la misma orden que el servicio: `pip install -e packages/incident-analyzer -e "services/api[dev]"` (venv en `services/api/.venv`). `.venv/` y `*.egg-info/` en `.gitignore`.
 - **Validación**: requiere el venv del servicio (con el Python global falla al importar `fastapi`). Desde la raíz sin activar nada: `services\api\.venv\Scripts\python -m unittest discover -s services/api/tests -t services/api` (Windows) o `services/api/.venv/bin/python -m unittest ...` (Linux/macOS); registrado en `AGENTS.md` §4 junto al de la Fase 1, que sigue funcionando con cualquier Python ≥ 3.11.
@@ -118,6 +120,21 @@ Un agente que trabaje sobre `main` (tras `git fetch`) ve el árbol completo: `sr
 - **uv:** `uv run seed` usa el `.venv` de `services/api` (sincronización no exacta: conserva el núcleo `incident-analyzer` instalado con pip). **`uv.lock` versionado** por preferencia del tech lead (no había prohibición; antes el lockfile estaba "fuera de alcance").
 - **Tests ajustados de la Parte A:** `test_architecture.py` permite `print` solo en `app/seed.py`; el test de CORS ahora exige `GET/POST/PATCH/DELETE` y rechaza `PUT`.
 - **UI:** el vocabulario (países, monedas, categorías, estados) vive en `uis/backoffice/types/suppliers.ts` (excepción documentada en su `CLAUDE.md`), verificado contra el contexto por test. `JSON.stringify` solo en `lib/api-client.ts` (`postJson`/`patchJson`).
+
+### Autenticación AUTH-01: JWT en `services/api`, `User`/`Profile` solo en TinyDB
+
+**Decisión (2026-09-30, tech lead, D-AUTH-1…13 en `services/api/SPECS.md` Parte C):** contexto en `docs/auth-api.md`. Autenticación en la **misma** app FastAPI; las rutas existentes con datos sensibles exigen JWT.
+
+**Puntos técnicos a recordar:**
+- **`User` y `Profile` viven solo en TinyDB** (`AUTH_DB_PATH`, por defecto `services/api/data/auth.json`, ignorado por git; tablas `users` y `profiles`), también cuando llegue Supabase/PostgreSQL: allí solo se guardará `user_uuid` = `User.id`. Nunca crear tablas de usuarios/perfiles en Postgres.
+- **Ids:** UUID v4 propios (campo `id` del documento), no el `doc_id` entero de TinyDB que usan los proveedores (D-SUP-4). Son el `sub` del JWT. Ningún dato existente referenciaba usuarios, así que no rompe nada.
+- **Configuración:** `JWT_SECRET_KEY` (≥ 32 caracteres) y `ACCESS_TOKEN_EXPIRE_MINUTES` **sin valor por defecto**; `create_app()` llama a `Settings.require_auth()` y lanza `ConfigError` si faltan. Se cargan con `uv run --env-file .env …` (sin `python-dotenv`); `Settings.jwt_secret_key` tiene `repr=False`. El seeder y `create-admin` no las necesitan. En `.env`, rutas Windows con `/`: `uv` no interpreta `\` sin comillas e ignora la variable.
+- **Protección:** `include_router(..., dependencies=[Depends(get_current_user)])` en `/api/incidents` y `/suppliers` (las 8 rutas); `/users`, `/auth/me` y `/profiles` declaran la dependencia por ruta. Públicas: `/health`, `/docs`, `/openapi.json`, `POST /auth/login`, `POST /users`.
+- **Login:** `OAuth2PasswordRequestForm` (`username` = email) → el *Authorize* de `/docs` funciona. 401 genérico `invalid_credentials`, con verificación contra un hash ficticio si el email no existe.
+- **401 vs 403:** `NotAuthenticatedError` (401 + `WWW-Authenticate: Bearer`) para cualquier fallo del token; `ForbiddenError` (403) para usuario ajeno, `role` sin ser admin y `GET /users` sin ser admin. Un no-admin recibe 403 también con ids inexistentes.
+- **Contraseñas:** 8 caracteres mínimo, 72 bytes máximo validado antes del hash (bcrypt 5 rechaza > 72 bytes).
+- **CORS:** solo se añadió `allow_headers=["Authorization"]`. **`PUT` no está** en los métodos (el test de CORS de la Parte A lo rechaza); habrá que añadirlo cuando el backoffice use `PUT /users/{id}` o `PUT /profiles/me`.
+- **Tests:** `tests/support.py` crea para cada cliente una base de usuarios temporal y un JWT válido (clave generada al importar, un único hash bcrypt de fixture por proceso). `test_architecture.py` admite `"@"` solo en `app/auth/models.py` (validación de email, sin relación con la regla de incidentes) y `print` en `app/auth/create_admin.py`. La suite pasa de ~6 s a ~1 min por los hashes bcrypt reales.
 
 ## Skills y agentes en este repo
 
