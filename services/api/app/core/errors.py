@@ -32,8 +32,10 @@ class ApiError(HTTPException):
 
     code: str = "error"
 
-    def __init__(self, status_code: int, code: str, detail: str) -> None:
-        super().__init__(status_code=status_code, detail=detail)
+    def __init__(
+        self, status_code: int, code: str, detail: str, headers: Mapping[str, str] | None = None
+    ) -> None:
+        super().__init__(status_code=status_code, detail=detail, headers=dict(headers) if headers else None)
         self.code = code
 
 
@@ -50,6 +52,48 @@ class NoAnalysisError(ApiError):
 class SupplierNotFoundError(ApiError):
     def __init__(self) -> None:
         super().__init__(404, "supplier_not_found", "supplier not found")
+
+
+# AUTH-01. Los mensajes son fijos: nunca repiten el email, el token ni la
+# contraseña recibidos. RFC 6750: un 401 de un recurso Bearer lleva
+# `WWW-Authenticate: Bearer`.
+_BEARER_CHALLENGE = {"WWW-Authenticate": "Bearer"}
+
+
+class NotAuthenticatedError(ApiError):
+    """Sin token, token mal formado, firma inválida, expirado o usuario inexistente."""
+
+    def __init__(self) -> None:
+        super().__init__(401, "not_authenticated", "could not validate credentials", _BEARER_CHALLENGE)
+
+
+class InvalidCredentialsError(ApiError):
+    """Login fallido. El mismo mensaje si el email no existe o la contraseña no coincide."""
+
+    def __init__(self) -> None:
+        super().__init__(401, "invalid_credentials", "incorrect email or password", _BEARER_CHALLENGE)
+
+
+class ForbiddenError(ApiError):
+    """Autenticado, pero sin permiso sobre el recurso (otro usuario, rol reservado a admin)."""
+
+    def __init__(self, detail: str = "not allowed to access this resource") -> None:
+        super().__init__(403, "forbidden", detail)
+
+
+class UserNotFoundError(ApiError):
+    def __init__(self) -> None:
+        super().__init__(404, "user_not_found", "user not found")
+
+
+class ProfileNotFoundError(ApiError):
+    def __init__(self) -> None:
+        super().__init__(404, "profile_not_found", "profile not found")
+
+
+class EmailAlreadyRegisteredError(ApiError):
+    def __init__(self) -> None:
+        super().__init__(409, "email_already_registered", "email already registered")
 
 
 class FileTooLargeError(ApiError):
